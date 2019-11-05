@@ -1,0 +1,32 @@
+language: python
+python:
+  - "3.6"
+  - "3.7"
+  - "3.8"
+services:
+  - docker
+
+env:
+  - BROKER_URI=amqp://infrabbit3:infrabbit3@$localhost:5673/
+
+# safelist branch to build
+branches:
+  only:
+    - master
+
+before_install:
+  - sudo sysctl -w net.ipv6.conf.all.disable_ipv6=1
+  - sudo sysctl -w net.ipv6.conf.default.disable_ipv6=1
+
+install:
+  - python setup.py develop
+  - pip install -r requirements.txt
+  - pip install -r requirements-dev.txt
+
+script:
+  - sleep 20
+  - ./dev/all_tests.sh
+
+notifications:
+  email:
+    - bifer@alea-soluciones.com
