@@ -1,5 +1,7 @@
 # infrabbitmq3
 
+[![Build status](https://secure.travis-ci.org/aleasoluciones/infrabbitmq3.svg?branch=master)](https://secure.travis-ci.org/aleasoluciones/infrabbitmq3)
+
 Infrastructure RabbitMQ Client.
 This is the migration from infrabbitmq which uses python2.7 and puka to a new infrabbitmq using python 3.x and pika
 
