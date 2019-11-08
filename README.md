@@ -38,12 +38,12 @@ Inside your virtualenv, run `dev/setup_venv.sh`
 Inside your virtualenv, run `source dev/env_develops`
 
 ### Run at localhost
-Start a rabbitmq server 
+Start a rabbitmq server
 ```
 $ dev/start_local_dependencies.sh
 ```
 
-Stop a rabbitmq server 
+Stop a rabbitmq server
 ```
 $ dev/stop_local_dependencies.sh
 ```
@@ -63,7 +63,7 @@ $ dev/local_integration_tests.sh
 
 ## Factory tests
 ```
-$ dev/local_factory_tests.sh
+$ dev/factory_tests.sh
 ```
 
 ## All tests
