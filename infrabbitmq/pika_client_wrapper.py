@@ -13,6 +13,8 @@ from infrabbitmq.exceptions import ClientWrapperError
 
 
 class PikaClientWrapper:
+    DEFAULT_HEARTBEAT = 0
+
     def __init__(self, pika_library):
         self._connection = None
         self._channel = None
@@ -32,9 +34,21 @@ class PikaClientWrapper:
 
     @raise_client_wrapper_error
     def connect(self, broker_uri):
-        self._connection = self._pika_library.BlockingConnection(URLParameters(broker_uri))
+        broker_uri_with_heartbeat = self._build_broker_uri_with_heartbeat(broker_uri)
+        self._connection = self._pika_library.BlockingConnection(URLParameters(broker_uri_with_heartbeat))
         self._channel = self._connection.channel()
         self._channel.confirm_delivery()
+
+    def _build_broker_uri_with_heartbeat(self, broker_uri):
+        heartbeat_param = 'heartbeat'
+        existing_query_params = '?'
+        if heartbeat_param not in broker_uri:
+            if existing_query_params in broker_uri:
+                return f"{broker_uri}&{heartbeat_param}={self.DEFAULT_HEARTBEAT}"
+            return f"{broker_uri}?{heartbeat_param}={self.DEFAULT_HEARTBEAT}"
+        return broker_uri
+
+
 
     @raise_client_wrapper_error
     def disconnect(self):

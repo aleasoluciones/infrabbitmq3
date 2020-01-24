@@ -20,11 +20,14 @@ from infrabbitmq.exceptions import ClientWrapperError
 
 IRRELEVANT_EXCEPTION_REPLY_CODE = 42
 IRRELEVANT_EXCEPTION_REPLY_TEXT = 'irrelevant_exception_reply_text'
+A_BROKER_URI_WITH_NO_QUERY_PARAMETERS = environ['BROKER_URI']
+A_BROKER_URI_WITH_QUERY_PARAMETERS_AND_NO_HEARTBEAT = f"{A_BROKER_URI_WITH_NO_QUERY_PARAMETERS}?connection_attempts=3"
+A_BROKER_URI_WITH_HEARTBEAT = f"{A_BROKER_URI_WITH_NO_QUERY_PARAMETERS}?heartbeat=60"
 
 
 with description('PikaClientWrapper contract tests') as self:
     with before.each:
-        self.broker_uri = environ['BROKER_URI']
+        self.broker_uri = A_BROKER_URI_WITH_NO_QUERY_PARAMETERS
         self.pika_library_spy = Spy()
         self.sut = PikaClientWrapper(self.pika_library_spy)
 
@@ -55,6 +58,37 @@ with description('PikaClientWrapper contract tests') as self:
             self.sut.connect(self.broker_uri)
 
             expect(self.pika_blocking_channel_spy.confirm_delivery).to(have_been_called)
+
+        with context('handling heartbeat in broker uri'):
+            with context('when broker uri has query parameters'):
+                with context('and heartbeat is NOT one of them'):
+                    with it('adds heartbeat to 0 on broker uri'):
+                        pika_url_parameters_with_default_heartbeat = pika_URLParameters(f"{A_BROKER_URI_WITH_QUERY_PARAMETERS_AND_NO_HEARTBEAT}&heartbeat={self.sut.DEFAULT_HEARTBEAT}")
+                        when(self.pika_library_spy).BlockingConnection(pika_url_parameters_with_default_heartbeat).returns(self.pika_blocking_connection_spy)
+                        when(self.pika_blocking_connection_spy).channel().returns(self.pika_blocking_channel_spy)
+
+                        self.sut.connect(A_BROKER_URI_WITH_QUERY_PARAMETERS_AND_NO_HEARTBEAT)
+
+                        expect(self.pika_library_spy.BlockingConnection).to(have_been_called_with(pika_url_parameters_with_default_heartbeat))
+
+                with context('and heartbeat is one of them'):
+                    with it('does NOT change the broker uri'):
+                        when(self.pika_library_spy).BlockingConnection(pika_URLParameters(A_BROKER_URI_WITH_HEARTBEAT)).returns(self.pika_blocking_connection_spy)
+                        when(self.pika_blocking_connection_spy).channel().returns(self.pika_blocking_channel_spy)
+
+                        self.sut.connect(A_BROKER_URI_WITH_HEARTBEAT)
+
+                        expect(self.pika_library_spy.BlockingConnection).to(have_been_called_with(pika_URLParameters(A_BROKER_URI_WITH_HEARTBEAT)))
+
+            with context('when broker uri has NOT query parameters'):
+                with it('adds heartbeat to 0 on broker uri'):
+                    pika_url_parameters_with_no_query_parameters = pika_URLParameters(f"{A_BROKER_URI_WITH_NO_QUERY_PARAMETERS}?heartbeat={self.sut.DEFAULT_HEARTBEAT}")
+                    when(self.pika_library_spy).BlockingConnection(pika_url_parameters_with_no_query_parameters).returns(self.pika_blocking_connection_spy)
+                    when(self.pika_blocking_connection_spy).channel().returns(self.pika_blocking_channel_spy)
+
+                    self.sut.connect(A_BROKER_URI_WITH_NO_QUERY_PARAMETERS)
+
+                    expect(self.pika_library_spy.BlockingConnection).to(have_been_called_with(pika_url_parameters_with_no_query_parameters))
 
         with context('when an error arise (unhappy path)'):
             with it('raises a ClientWrapperError'):
