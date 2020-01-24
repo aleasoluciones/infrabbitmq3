@@ -22,47 +22,44 @@ A_QUEUE_OPTIONS = {}
 A_LIST_OF_ONE_NONE_RAW_MESSAGE = [None]
 
 
-with description('RabbitMQQueueEventProcessor tests') as self:
+with description('RabbitMQQueueEventProcessor specs') as self:
     with before.each:
         self.event_processor = Spy()
         self.event_builder = Spy()
         self.logger = Spy(Logger)
-    with context('Processing: first step (connect)'):
-        with it('does all these steps (using default options)'):
-                rabbitmq_client_mock = Mock(RabbitMQClient)
-                with rabbitmq_client_mock:
-                    rabbitmq_client_mock.disconnect()
-                    rabbitmq_client_mock.exchange_declare(exchange=AN_EXCHANGE,
-                                                          exchange_type=TOPIC_EXCHANGE_TYPE,
-                                                          durable=True,
-                                                          auto_delete=False)
-                    rabbitmq_client_mock.queue_declare(queue_name=A_QUEUE_NAME,
-                                                       durable=True,
-                                                       auto_delete=False,
-                                                       message_ttl=None)
-                    rabbitmq_client_mock.queue_bind(queue_name=A_QUEUE_NAME,
-                                                    exchange=AN_EXCHANGE,
-                                                    routing_key=A_SINGLE_TOPIC)
-                    rabbitmq_client_mock.consume_next(queue_name=A_QUEUE_NAME).returns(A_LIST_OF_ONE_NONE_RAW_MESSAGE)
+
+    with context('FEATURE: connection setup'):
+        with it('does every connection action in a precise order (using default options)'):
+            rabbitmq_client_mock = Mock(RabbitMQClient)
+            with rabbitmq_client_mock:
+                rabbitmq_client_mock.disconnect()
+                rabbitmq_client_mock.exchange_declare(exchange=AN_EXCHANGE,
+                                                      exchange_type=TOPIC_EXCHANGE_TYPE,
+                                                      durable=True,
+                                                      auto_delete=False)
+                rabbitmq_client_mock.queue_declare(queue_name=A_QUEUE_NAME,
+                                                   durable=True,
+                                                   auto_delete=False,
+                                                   message_ttl=None)
+                rabbitmq_client_mock.queue_bind(queue_name=A_QUEUE_NAME,
+                                                exchange=AN_EXCHANGE,
+                                                routing_key=A_SINGLE_TOPIC)
 
 
+            sut = RabbitMQQueueEventProcessor(queue_name=A_QUEUE_NAME,
+                                              event_processor=self.event_processor,
+                                              rabbitmq_client=rabbitmq_client_mock,
+                                              exchange=AN_EXCHANGE,
+                                              list_of_topics=A_TOPIC_LIST_WITH_A_SINGLE_TOPIC,
+                                              exchange_options=AN_EXCHANGE_OPTIONS,
+                                              queue_options=A_QUEUE_OPTIONS,
+                                              event_builder=self.event_builder,
+                                              logger=self.logger,
+                                              exchange_type=TOPIC_EXCHANGE_TYPE)
 
-                sut = RabbitMQQueueEventProcessor(queue_name=A_QUEUE_NAME,
-                                                  event_processor=self.event_processor,
-                                                  rabbitmq_client=rabbitmq_client_mock,
-                                                  exchange=AN_EXCHANGE,
-                                                  list_of_topics=A_TOPIC_LIST_WITH_A_SINGLE_TOPIC,
-                                                  exchange_options=AN_EXCHANGE_OPTIONS,
-                                                  queue_options=A_QUEUE_OPTIONS,
-                                                  event_builder=self.event_builder,
-                                                  logger=self.logger,
-                                                  exchange_type=TOPIC_EXCHANGE_TYPE)
+            sut.connection_setup()
 
-
-                sut.process_body()
-
-
-                expect(rabbitmq_client_mock).to(have_been_satisfied)
+            expect(rabbitmq_client_mock).to(have_been_satisfied)
 
         with context('with exchange options'):
             with it('uses options received'):
@@ -82,11 +79,7 @@ with description('RabbitMQQueueEventProcessor tests') as self:
                                                   logger=self.logger,
                                                   exchange_type=X_DELAYED)
 
-                when(rabbitmq_client_spy).consume_next(ANY_ARG).returns(A_LIST_OF_ONE_NONE_RAW_MESSAGE)
-
-
-                sut.process_body()
-
+                sut.connection_setup()
 
                 expect(rabbitmq_client_spy.exchange_declare).to(have_been_called_with(exchange=AN_EXCHANGE,
                                                                                       exchange_type=X_DELAYED,
@@ -113,11 +106,8 @@ with description('RabbitMQQueueEventProcessor tests') as self:
                                                   event_builder=self.event_builder,
                                                   logger=self.logger,
                                                   exchange_type=TOPIC_EXCHANGE_TYPE)
-                when(rabbitmq_client_spy).consume_next(ANY_ARG).returns(A_LIST_OF_ONE_NONE_RAW_MESSAGE)
 
-
-                sut.process_body()
-
+                sut.connection_setup()
 
                 expect(rabbitmq_client_spy.queue_declare).to(have_been_called_with(queue_name=A_QUEUE_NAME,
                                                                                    durable=set_durable_false,
@@ -141,16 +131,13 @@ with description('RabbitMQQueueEventProcessor tests') as self:
                                                   event_builder=self.event_builder,
                                                   logger=self.logger,
                                                   exchange_type=TOPIC_EXCHANGE_TYPE)
-                when(rabbitmq_client_spy).consume_next(ANY_ARG).returns(A_LIST_OF_ONE_NONE_RAW_MESSAGE)
 
-
-                sut.process_body()
-
+                sut.connection_setup()
 
                 expect(rabbitmq_client_spy.queue_bind).to(have_been_called_with(routing_key=a_topic))
                 expect(rabbitmq_client_spy.queue_bind).to(have_been_called_with(routing_key=another_topic))
 
-    with context('Processing: last step (process)'):
+    with context('FEATURE: proccess body'):
         with before.each:
             self.rabbitmq_client_spy = Spy(RabbitMQClient)
             self.sut = RabbitMQQueueEventProcessor(queue_name=A_QUEUE_NAME,
@@ -164,11 +151,6 @@ with description('RabbitMQQueueEventProcessor tests') as self:
                                                    logger=self.logger,
                                                    exchange_type=TOPIC_EXCHANGE_TYPE)
 
-        # with it('calls rabbitmq_client consume next'): # Not necessary test
-        #     self.sut.process_body(max_iterations=None)
-        #
-        #     expect(self.rabbitmq_client_spy.consume_next).to(have_been_called_with(queue_name=A_QUEUE_NAME))
-
         with context('when "max_iteration" is None'):
             with context('when there is a message'):
                 with context('processing a message'):
@@ -177,6 +159,11 @@ with description('RabbitMQQueueEventProcessor tests') as self:
                         self.a_rabbitmq_message = self._build_a_rabbitmq_message(a_message_body)
                         a_list_of_one_raw_message = [self.a_rabbitmq_message]
                         when(self.rabbitmq_client_spy).consume_next(queue_name=A_QUEUE_NAME).returns(a_list_of_one_raw_message)
+
+                    with it('calls rabbitmq_client consume next'):
+                        self.sut.process_body(max_iterations=None)
+
+                        expect(self.rabbitmq_client_spy.consume_next).to(have_been_called_with(queue_name=A_QUEUE_NAME))
 
                     with it('calls event_builder to build the message body to process'):
                         self.sut.process_body(max_iterations=None)
@@ -219,6 +206,11 @@ with description('RabbitMQQueueEventProcessor tests') as self:
             with context('when there is NOT a message (message is None)'):
                 with before.each:
                     when(self.rabbitmq_client_spy).consume_next(queue_name=A_QUEUE_NAME).returns(A_LIST_OF_ONE_NONE_RAW_MESSAGE)
+
+                with it('calls rabbitmq_client consume next'):
+                    self.sut.process_body(max_iterations=None)
+
+                    expect(self.rabbitmq_client_spy.consume_next).to(have_been_called_with(queue_name=A_QUEUE_NAME))
 
                 with it('does NOT call event_builder to build the message body to process'):
                     self.sut.process_body(max_iterations=None)

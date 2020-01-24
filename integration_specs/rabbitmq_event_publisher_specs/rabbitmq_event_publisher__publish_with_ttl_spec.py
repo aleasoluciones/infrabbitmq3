@@ -57,6 +57,7 @@ with description('RabbitMQEventPublisher integration test: Feature publish_with_
                                                                        queue_options={},
                                                                        exchange_options={}
                                                                        )
+                self.sut_event_processor.connection_setup()
 
             with context('when the ttl is NOT reached'):
                 with it('calls the processor with event object data'):
@@ -115,6 +116,7 @@ with description('RabbitMQEventPublisher integration test: Feature publish_with_
                                                                        queue_options=A_QUEUE_WITH_TTL_OPTION,
                                                                        exchange_options={}
                                                                        )
+                self.sut_event_processor.connection_setup()
 
             with context('when the ttl is reached'):
                 with it('does NOT call the processor with event object data'):

@@ -83,14 +83,16 @@ def _queue_event_processor(queue_name, exchange, list_of_topics, event_processor
 def _process_body_events(queue_name, exchange, list_of_topics, event_processor, message_ttl_milliseconds, serializer, event_builder, exchange_type, logger):
     logger.info("Connecting")
     # Be aware. Each time this function is called, we are creating a new no_singleton_rabbitmq_queue_event_processor
-    _queue_event_processor(queue_name, exchange,
-                           list_of_topics,
-                           event_processor,
-                           message_ttl_milliseconds,
-                           serializer,
-                           event_builder,
-                           exchange_type,
-                           logger).process_body()
+    queue_event_processor = _queue_event_processor(queue_name, exchange,
+                                                   list_of_topics,
+                                                   event_processor,
+                                                   message_ttl_milliseconds,
+                                                   serializer,
+                                                   event_builder,
+                                                   exchange_type,
+                                                   logger)
+    queue_event_processor.connection_setup()
+    queue_event_processor.process_body()
 
 
 def main(factory, network,

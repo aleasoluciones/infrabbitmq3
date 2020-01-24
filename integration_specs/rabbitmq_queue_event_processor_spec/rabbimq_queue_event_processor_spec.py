@@ -32,7 +32,7 @@ ANOTHER_EVENT_DATA = 'another_event_data'
 SOME_ANOTHER_EVENT_DATA = 'some_another_event_data'
 
 
-with description('RabbitMQQueueEventProcessor integration test: Feature process_body') as self:
+with description('RabbitMQQueueEventProcessor integration test') as self:
     with before.each:
         self.sut_event_publisher = factory.rabbitmq_event_publisher(exchange=A_TOPIC_EXCHANGE_NAME)
         self.event_processor = Spy()
@@ -47,7 +47,7 @@ with description('RabbitMQQueueEventProcessor integration test: Feature process_
         rabbitmq_client.queue_delete(queue_name=A_QUEUE_NAME)
         rabbitmq_client.exchange_delete(exchange=A_TOPIC_EXCHANGE_NAME)
 
-    with context('processing events'):
+    with context('FEATURE: process body'):
         with context('when wildcard topic and publish two events'):
             with it('calls the processor twice with event object data'):
                 sut_event_processor = factory.no_singleton_rabbitmq_queue_event_processor(queue_name=A_QUEUE_NAME,
@@ -59,6 +59,7 @@ with description('RabbitMQQueueEventProcessor integration test: Feature process_
                                                                                           queue_options={},
                                                                                           exchange_options={}
                                                                                           )
+                sut_event_processor.connection_setup()
                 self.sut_event_publisher.publish('kern.critical', A_NETWORK, data=AN_EVENT_DATA)
                 self.sut_event_publisher.publish('kern.critical.info', A_NETWORK, data=ANOTHER_EVENT_DATA)
 
@@ -79,6 +80,7 @@ with description('RabbitMQQueueEventProcessor integration test: Feature process_
                                                                                           queue_options={},
                                                                                           exchange_options={}
                                                                                           )
+                sut_event_processor.connection_setup()
                 self.sut_event_publisher.publish('kern.critical', A_NETWORK, data=AN_EVENT_DATA)
                 self.sut_event_publisher.publish('hdd.info', A_NETWORK, data=ANOTHER_EVENT_DATA)
                 self.sut_event_publisher.publish('another.topic', A_NETWORK, data=SOME_ANOTHER_EVENT_DATA)
@@ -102,6 +104,7 @@ with description('RabbitMQQueueEventProcessor integration test: Feature process_
                                                                                           queue_options=a_queue_with_ttl_option,
                                                                                           exchange_options={}
                                                                                           )
+                sut_event_processor.connection_setup()
                 self.sut_event_publisher.publish('kern.critical', A_NETWORK, data=AN_EVENT_DATA)
 
                 sleep(1)
@@ -122,6 +125,7 @@ with description('RabbitMQQueueEventProcessor integration test: Feature process_
                                                                                               queue_options={},
                                                                                               exchange_options={}
                                                                                               )
+                    sut_event_processor.connection_setup()
 
                     self.sut_event_publisher.publish_with_delay('kern.critical', A_NETWORK, delay_milliseconds, data=AN_EVENT_DATA)
                     sut_event_processor.process_body(max_iterations=1)
@@ -143,6 +147,7 @@ with description('RabbitMQQueueEventProcessor integration test: Feature process_
                                                                                           queue_options={},
                                                                                           exchange_options={}
                                                                                           )
+                sut_event_processor.connection_setup()
                 self.sut_event_publisher.publish('kern.critical', A_NETWORK, data={})
 
 
