@@ -91,7 +91,6 @@ def _process_body_events(queue_name, exchange, list_of_topics, event_processor, 
                                                    event_builder,
                                                    exchange_type,
                                                    logger)
-    queue_event_processor.connection_setup()
     queue_event_processor.process_body()
 
 

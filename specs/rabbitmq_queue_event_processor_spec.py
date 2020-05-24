@@ -28,7 +28,7 @@ with description('RabbitMQQueueEventProcessor specs') as self:
         self.event_builder = Spy()
         self.logger = Spy(Logger)
 
-    with context('FEATURE: connection setup'):
+    with context('FEATURE: connection setup at initialization phase'):
         with it('does every connection action in a precise order (using default options)'):
             rabbitmq_client_mock = Mock(RabbitMQClient)
             with rabbitmq_client_mock:
@@ -57,7 +57,6 @@ with description('RabbitMQQueueEventProcessor specs') as self:
                                               logger=self.logger,
                                               exchange_type=TOPIC_EXCHANGE_TYPE)
 
-            sut.connection_setup()
 
             expect(rabbitmq_client_mock).to(have_been_satisfied)
 
@@ -79,7 +78,6 @@ with description('RabbitMQQueueEventProcessor specs') as self:
                                                   logger=self.logger,
                                                   exchange_type=X_DELAYED)
 
-                sut.connection_setup()
 
                 expect(rabbitmq_client_spy.exchange_declare).to(have_been_called_with(exchange=AN_EXCHANGE,
                                                                                       exchange_type=X_DELAYED,
@@ -107,7 +105,6 @@ with description('RabbitMQQueueEventProcessor specs') as self:
                                                   logger=self.logger,
                                                   exchange_type=TOPIC_EXCHANGE_TYPE)
 
-                sut.connection_setup()
 
                 expect(rabbitmq_client_spy.queue_declare).to(have_been_called_with(queue_name=A_QUEUE_NAME,
                                                                                    durable=set_durable_false,
@@ -132,7 +129,6 @@ with description('RabbitMQQueueEventProcessor specs') as self:
                                                   logger=self.logger,
                                                   exchange_type=TOPIC_EXCHANGE_TYPE)
 
-                sut.connection_setup()
 
                 expect(rabbitmq_client_spy.queue_bind).to(have_been_called_with(routing_key=a_topic))
                 expect(rabbitmq_client_spy.queue_bind).to(have_been_called_with(routing_key=another_topic))

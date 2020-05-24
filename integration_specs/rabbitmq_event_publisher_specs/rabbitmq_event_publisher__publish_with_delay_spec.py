@@ -45,7 +45,6 @@ with description('RabbitMQEventPublisher integration test: Feature publish_with_
                                                                queue_options={},
                                                                exchange_options={}
                                                                )
-        self.sut_event_processor.connection_setup()
 
     with after.each:
         self.rabbitmq_client.queue_unbind(queue_name=A_QUEUE_NAME,

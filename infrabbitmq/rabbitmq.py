@@ -282,6 +282,8 @@ class RabbitMQQueueEventProcessor:
         self._exchange_type = exchange_type
         self._logger = logger
 
+        self._connection_setup()
+
     def process_body(self, max_iterations=None):
         for index, raw_message in enumerate(self._rabbitmq_client.consume_next(queue_name=self._queue_name), start=1):
             if raw_message is not None:
@@ -297,7 +299,7 @@ class RabbitMQQueueEventProcessor:
             if max_iterations is not None and index >= max_iterations:
                 return
 
-    def connection_setup(self):
+    def _connection_setup(self):
         self._rabbitmq_client.disconnect()
         self._declare_recurses()
 

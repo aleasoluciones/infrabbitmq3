@@ -59,7 +59,6 @@ with description('RabbitMQQueueEventProcessor integration test') as self:
                                                                                           queue_options={},
                                                                                           exchange_options={}
                                                                                           )
-                sut_event_processor.connection_setup()
                 self.sut_event_publisher.publish('kern.critical', A_NETWORK, data=AN_EVENT_DATA)
                 self.sut_event_publisher.publish('kern.critical.info', A_NETWORK, data=ANOTHER_EVENT_DATA)
 
@@ -80,7 +79,6 @@ with description('RabbitMQQueueEventProcessor integration test') as self:
                                                                                           queue_options={},
                                                                                           exchange_options={}
                                                                                           )
-                sut_event_processor.connection_setup()
                 self.sut_event_publisher.publish('kern.critical', A_NETWORK, data=AN_EVENT_DATA)
                 self.sut_event_publisher.publish('hdd.info', A_NETWORK, data=ANOTHER_EVENT_DATA)
                 self.sut_event_publisher.publish('another.topic', A_NETWORK, data=SOME_ANOTHER_EVENT_DATA)
@@ -104,7 +102,6 @@ with description('RabbitMQQueueEventProcessor integration test') as self:
                                                                                           queue_options=a_queue_with_ttl_option,
                                                                                           exchange_options={}
                                                                                           )
-                sut_event_processor.connection_setup()
                 self.sut_event_publisher.publish('kern.critical', A_NETWORK, data=AN_EVENT_DATA)
 
                 sleep(1)
@@ -125,7 +122,6 @@ with description('RabbitMQQueueEventProcessor integration test') as self:
                                                                                               queue_options={},
                                                                                               exchange_options={}
                                                                                               )
-                    sut_event_processor.connection_setup()
 
                     self.sut_event_publisher.publish_with_delay('kern.critical', A_NETWORK, delay_milliseconds, data=AN_EVENT_DATA)
                     sut_event_processor.process_body(max_iterations=1)
@@ -147,7 +143,6 @@ with description('RabbitMQQueueEventProcessor integration test') as self:
                                                                                           queue_options={},
                                                                                           exchange_options={}
                                                                                           )
-                sut_event_processor.connection_setup()
                 self.sut_event_publisher.publish('kern.critical', A_NETWORK, data={})
 
 
