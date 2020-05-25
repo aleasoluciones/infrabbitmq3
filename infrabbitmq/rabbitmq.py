@@ -221,6 +221,7 @@ class RabbitMQQueueIterator:
 
 
 class RabbitMQEventPublisher:
+
     def __init__(self, rabbitmq_client, clock_service, exchange):
         self._rabbitmq_client = rabbitmq_client
         self._clock_service = clock_service
@@ -236,11 +237,11 @@ class RabbitMQEventPublisher:
             event.timestamp = self._clock_service.timestamp(now)
             event.timestamp_str = str(now)
 
-        self._rabbitmq_client.exchange_declare(exchange=self._exchange, exchange_type=TOPIC_EXCHANGE_TYPE, durable=True)
+        self._exchange_declare(exchange_type=TOPIC_EXCHANGE_TYPE, durable=True)
         self._publish_an_event(event=event)
 
     def publish_with_ttl(self, event_name, network, ttl_milliseconds, data=None, id=None, topic_prefix=None):
-        self._rabbitmq_client.exchange_declare(exchange=self._exchange, exchange_type=TOPIC_EXCHANGE_TYPE, durable=True)
+        self._exchange_declare(exchange_type=TOPIC_EXCHANGE_TYPE, durable=True)
 
         event = self._build_an_event_with_timestamp(event_name, network=network, data=data, id=id, topic_prefix=topic_prefix)
         message_header = {'expiration': str(ttl_milliseconds)}
@@ -248,7 +249,7 @@ class RabbitMQEventPublisher:
 
     def publish_with_delay(self, event_name, network, delay_milliseconds=0, data=None, id=None, topic_prefix=None):
         exchange_arguments = {'x-delayed-type': 'topic'}
-        self._rabbitmq_client.exchange_declare(exchange=self._exchange, exchange_type=X_DELAYED, durable=True, arguments=exchange_arguments)
+        self._exchange_declare(exchange_type=X_DELAYED, durable=True, arguments=exchange_arguments)
 
         event = self._build_an_event_with_timestamp(event_name, network=network, data=data, id=id, topic_prefix=topic_prefix)
         message_header = {'x-delay': str(delay_milliseconds)}
@@ -267,6 +268,12 @@ class RabbitMQEventPublisher:
             self._rabbitmq_client.publish(exchange=self._exchange, routing_key=event.topic, message=event, headers=message_header)
         else:
             self._rabbitmq_client.publish(exchange=self._exchange, routing_key=event.topic, message=event)
+
+    def _exchange_declare(self, exchange_type, durable, arguments=None):
+        if arguments:
+            self._rabbitmq_client.exchange_declare(exchange=self._exchange, exchange_type=exchange_type, durable=durable, arguments=arguments)
+        else:
+            self._rabbitmq_client.exchange_declare(exchange=self._exchange, exchange_type=exchange_type, durable=durable)
 
 
 class RabbitMQQueueEventProcessor:
