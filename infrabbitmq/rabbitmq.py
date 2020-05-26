@@ -1,4 +1,5 @@
 from functools import wraps
+from retrying import retry
 
 from infrabbitmq.exceptions import (
     ClientWrapperError,
@@ -222,6 +223,9 @@ class RabbitMQQueueIterator:
 
 class RabbitMQEventPublisher:
 
+    WAIT_EXPONENTIAL_MULTIPLIER_IN_MILLISECONDS = 1000
+    MAX_PUBLISHING_RETRIES = 3
+
     def __init__(self, rabbitmq_client, clock_service, exchange):
         self._rabbitmq_client = rabbitmq_client
         self._clock_service = clock_service
@@ -264,16 +268,24 @@ class RabbitMQEventPublisher:
         return event
 
     def _publish_an_event(self, event, message_header=None):
-        if message_header:
-            self._rabbitmq_client.publish(exchange=self._exchange, routing_key=event.topic, message=event, headers=message_header)
-        else:
-            self._rabbitmq_client.publish(exchange=self._exchange, routing_key=event.topic, message=event)
+        @retry(wait_exponential_multiplier=self.WAIT_EXPONENTIAL_MULTIPLIER_IN_MILLISECONDS, stop_max_attempt_number=self.MAX_PUBLISHING_RETRIES)
+        def _call_publish_an_event(event, message_header=None):
+            if message_header:
+                self._rabbitmq_client.publish(exchange=self._exchange, routing_key=event.topic, message=event, headers=message_header)
+            else:
+                self._rabbitmq_client.publish(exchange=self._exchange, routing_key=event.topic, message=event)
+
+        _call_publish_an_event(event, message_header)
 
     def _exchange_declare(self, exchange_type, durable, arguments=None):
-        if arguments:
-            self._rabbitmq_client.exchange_declare(exchange=self._exchange, exchange_type=exchange_type, durable=durable, arguments=arguments)
-        else:
-            self._rabbitmq_client.exchange_declare(exchange=self._exchange, exchange_type=exchange_type, durable=durable)
+        @retry(wait_exponential_multiplier=self.WAIT_EXPONENTIAL_MULTIPLIER_IN_MILLISECONDS, stop_max_attempt_number=self.MAX_PUBLISHING_RETRIES)
+        def _call_exchange_declare(exchange, exchange_type, durable, arguments):
+            if arguments:
+                self._rabbitmq_client.exchange_declare(exchange=self._exchange, exchange_type=exchange_type, durable=durable, arguments=arguments)
+            else:
+                self._rabbitmq_client.exchange_declare(exchange=self._exchange, exchange_type=exchange_type, durable=durable)
+
+        _call_exchange_declare(exchange=self._exchange, exchange_type=exchange_type, durable=durable, arguments=arguments)
 
 
 class RabbitMQQueueEventProcessor:

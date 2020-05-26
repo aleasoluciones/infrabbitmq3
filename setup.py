@@ -14,6 +14,7 @@ setup(name='infrabbitmq',
                                       ]
                              ),
       install_requires=['pika==1.1.0',
+                        'retrying==1.3.3',
                         'infcommon',
                         ],
       dependency_links=['git+https://github.com/aleasoluciones/infcommon3.git#egg=infcommon'],

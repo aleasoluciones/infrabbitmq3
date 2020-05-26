@@ -1,7 +1,7 @@
 from mamba import description, before, context, it
-from doublex import Spy
-from expects import expect, have_properties, have_len, be_above_or_equal, be_a, have_key
-from doublex_expects import have_been_called_with
+from doublex import Spy, when, ANY_ARG
+from expects import expect, have_properties, have_len, be_above_or_equal, be_a, have_key, raise_error
+from doublex_expects import have_been_called_with, have_been_called
 
 from infcommon.clock import Clock
 from infrabbitmq.events import Event
@@ -11,6 +11,8 @@ from infrabbitmq.rabbitmq import (
     TOPIC_EXCHANGE_TYPE,
     X_DELAYED,
 )
+from infrabbitmq.exceptions import RabbitMQError
+
 
 AN_EXCHANGE = 'an_exchange'
 AN_EVENT_NAME = 'an_event_name'
@@ -182,4 +184,27 @@ with description('RabbitMQEventPublisher tests') as self:
                 self.sut.publish_with_delay(AN_EVENT_NAME, A_NETWORK, delay_milliseconds=A_DELAY_MILLISECONDS_IN_NUMBER)
 
                 expect(self.rabbitmq_client.publish).to(have_been_called_with(headers=have_key('x-delay', str(A_DELAY_MILLISECONDS_IN_NUMBER))))
+
+    with context('When any calls to rabbitmq_client fails (UNHAPPY PATH)'):
+        with context('exchange declare fails (used by publish, publish_event_object, publish_with_delay or publish_with_ttl)'):
+            with it('retries three times'):
+                self.sut.WAIT_EXPONENTIAL_MULTIPLIER_IN_MILLISECONDS=1
+                when(self.rabbitmq_client).exchange_declare(ANY_ARG).raises(RabbitMQError)
+
+                def _declaring_exchange_raises_rabbitmq_error():
+                    self.sut.publish(AN_EVENT_NAME, A_NETWORK, data='a_data', id='an_id', topic_prefix=A_TOPIC_PREFIX)
+
+                expect(_declaring_exchange_raises_rabbitmq_error).to(raise_error(RabbitMQError))
+                expect(self.rabbitmq_client.exchange_declare).to(have_been_called.exactly(3))
+
+        with context('publish fails (used by publish, publish_event_object, publish_with_delay or publish_with_ttl)'):
+            with it('retries three times'):
+                self.sut.WAIT_EXPONENTIAL_MULTIPLIER_IN_MILLISECONDS=1
+                when(self.rabbitmq_client).publish(ANY_ARG).raises(RabbitMQError)
+
+                def _publishing_raises_rabbitmq_error():
+                    self.sut.publish(AN_EVENT_NAME, A_NETWORK, data='a_data', id='an_id', topic_prefix=A_TOPIC_PREFIX)
+
+                expect(_publishing_raises_rabbitmq_error).to(raise_error(RabbitMQError))
+                expect(self.rabbitmq_client.publish).to(have_been_called.exactly(3))
 
