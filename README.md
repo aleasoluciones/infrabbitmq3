@@ -63,7 +63,7 @@ $ dev/local_integration_tests.sh
 
 ## Factory tests
 ```
-$ dev/factory_tests.sh
+$ dev/local_factory_tests.sh
 ```
 
 ## All tests
