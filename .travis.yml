@@ -25,7 +25,9 @@ install:
 
 script:
   - sleep 20
+  - echo $DOCKERHUB_TOKEN | docker login -u $DOCKERHUB_USER --password-stdin
   - ./dev/all_tests.sh
+  - docker logout
 
 notifications:
   email:
