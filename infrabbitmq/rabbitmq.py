@@ -18,7 +18,6 @@ X_DELAYED = 'x-delayed-message'
 
 
 class RabbitMQClient:
-
     def __init__(self, broker_uri, serializer, pika_client_wrapper, logger):
         self._broker_uri = broker_uri.replace('rabbitmq', 'amqp')
         self._connected_client = None
@@ -222,7 +221,6 @@ class RabbitMQQueueIterator:
 
 
 class RabbitMQEventPublisher:
-
     WAIT_EXPONENTIAL_MULTIPLIER_IN_MILLISECONDS = 1000
     MAX_PUBLISHING_RETRIES = 3
 
