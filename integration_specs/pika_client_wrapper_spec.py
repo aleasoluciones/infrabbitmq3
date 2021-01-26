@@ -382,17 +382,15 @@ with description('PikaClientWrapper contract tests') as self:
             self.sut.connect(self.broker_uri)
 
         with context('happy path'):
-            with it('calls pika_library channel consume (irrelevant test, only for documentation)'):
+            with it('calls pika_library channel basic_get (irrelevant test, only for documentation)'):
                 a_queue_name = 'a_queue_name'
                 timeout_in_seconds = 1
-                consume_result_from_pika_library = [(None, None, None)]
-                when(self.pika_blocking_channel_spy).consume(a_queue_name,
-                                                             inactivity_timeout=timeout_in_seconds).returns(consume_result_from_pika_library)
+                consume_result_from_pika_library = (None, None, None)
+                when(self.pika_blocking_channel_spy).basic_get(a_queue_name).returns(consume_result_from_pika_library)
 
                 self.sut.consume_one_message(queue_name=a_queue_name, timeout_in_seconds=timeout_in_seconds)
 
-                expect(self.pika_blocking_channel_spy.consume).to(have_been_called_with(a_queue_name,
-                                                                                        inactivity_timeout=timeout_in_seconds))
+                expect(self.pika_blocking_channel_spy.basic_get).to(have_been_called_with(a_queue_name))
 
             with context('when there is a message'):
                 with before.each:
@@ -400,25 +398,18 @@ with description('PikaClientWrapper contract tests') as self:
                     self.timeout_in_seconds = 12
                     self.a_delivery_tag = 'a_delivery_tag'
                     self.a_message_body = 'a_body_message'
-                    consume_result_from_pika_library = [(pika_Basic.Deliver(delivery_tag=self.a_delivery_tag),
-                                                         pika_BasicProperties(),
-                                                         self.a_message_body),
-                                                        ]
-                    when(self.pika_blocking_channel_spy).consume(self.a_queue_name,
-                                                                 inactivity_timeout=self.timeout_in_seconds).returns(consume_result_from_pika_library)
+                    consume_result_from_pika_library = (pika_Basic.Deliver(delivery_tag=self.a_delivery_tag),
+                                                        pika_BasicProperties(),
+                                                        self.a_message_body)
+
+                    when(self.pika_blocking_channel_spy).basic_get(self.a_queue_name).returns(consume_result_from_pika_library)
 
                 with it('calls pika_library channel basic_ack'):
                     self.sut.consume_one_message(queue_name=self.a_queue_name, timeout_in_seconds=self.timeout_in_seconds)
 
                     expect(self.pika_blocking_channel_spy.basic_ack).to(have_been_called_with(self.a_delivery_tag))
 
-                with it('calls pika_library channel cancel'):
-                    self.sut.consume_one_message(queue_name=self.a_queue_name, timeout_in_seconds=self.timeout_in_seconds)
-
-                    expect(self.pika_blocking_channel_spy.cancel).to(have_been_called)
-
                 with it('returns a dict with key "body" and the message body as value'):
-
                     result = self.sut.consume_one_message(queue_name=self.a_queue_name, timeout_in_seconds=self.timeout_in_seconds)
 
                     expected_result = {'body': self.a_message_body}
@@ -428,14 +419,8 @@ with description('PikaClientWrapper contract tests') as self:
                 with before.each:
                     self.a_queue_name = 'a_queue_name'
                     self.timeout_in_seconds = 12
-                    consume_result_from_pika_library = [(None, None, None)]
-                    when(self.pika_blocking_channel_spy).consume(self.a_queue_name,
-                                                                 inactivity_timeout=self.timeout_in_seconds).returns(consume_result_from_pika_library)
-
-                with it('calls pika_library channel cancel'):
-                    self.sut.consume_one_message(queue_name=self.a_queue_name, timeout_in_seconds=self.timeout_in_seconds)
-
-                    expect(self.pika_blocking_channel_spy.cancel).to(have_been_called)
+                    consume_result_from_pika_library = (None, None, None)
+                    when(self.pika_blocking_channel_spy).basic_get(self.a_queue_name).returns(consume_result_from_pika_library)
 
                 with it('returns an empty dict'):
                     result = self.sut.consume_one_message(queue_name=self.a_queue_name, timeout_in_seconds=self.timeout_in_seconds)
@@ -449,7 +434,7 @@ with description('PikaClientWrapper contract tests') as self:
                         a_channel_closed_error = pika_exceptions.ChannelClosed(reply_code=IRRELEVANT_EXCEPTION_REPLY_CODE,
                                                                                reply_text=IRRELEVANT_EXCEPTION_REPLY_TEXT)
 
-                        when(self.pika_blocking_channel_spy).consume(ANY_ARG).raises(a_channel_closed_error)
+                        when(self.pika_blocking_channel_spy).basic_get(ANY_ARG).raises(a_channel_closed_error)
 
                         self.sut.consume_one_message(queue_name='irrelevant_queue_name', timeout_in_seconds=42)
 
@@ -458,7 +443,7 @@ with description('PikaClientWrapper contract tests') as self:
             with context('when value error arise'):
                 with it('raises a ClientWrapperError'):
                     def _when_consume_arise_a_value_error():
-                        when(self.pika_blocking_channel_spy).consume(ANY_ARG).raises(ValueError)
+                        when(self.pika_blocking_channel_spy).basic_get(ANY_ARG).raises(ValueError)
 
                         self.sut.consume_one_message(queue_name='irrelevant_queue_name', timeout_in_seconds=42)
 

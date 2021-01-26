@@ -110,12 +110,9 @@ class PikaClientWrapper:
     @raise_client_wrapper_error
     def consume_one_message(self, queue_name, timeout_in_seconds=1):
         message_body = {}
-        for method_frame, properties, body in self._channel.consume(queue_name, inactivity_timeout=timeout_in_seconds):
-            if body and method_frame:
-                self._channel.basic_ack(method_frame.delivery_tag)
-                message_body['body'] = body
-            break
-
-        self._channel.cancel()
+        method_frame, properties, body = self._channel.basic_get(queue_name)
+        if body and method_frame:
+            self._channel.basic_ack(method_frame.delivery_tag)
+            message_body['body'] = body
 
         return message_body
