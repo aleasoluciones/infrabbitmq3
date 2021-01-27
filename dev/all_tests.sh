@@ -2,4 +2,5 @@
 
 dev/unit_tests.sh && \
 dev/integration_tests.sh && \
+dev/smoke_tests.sh && \
 dev/factory_tests.sh
