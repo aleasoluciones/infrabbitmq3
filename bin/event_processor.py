@@ -161,8 +161,6 @@ if __name__ == '__main__':
              event_builder=args.event_builder,
              message_ttl_milliseconds=args.message_ttl_milliseconds)
     except Exception as exc:
-        import traceback
-        traceback.print_exc()
         logger.critical(f'EventProcessor Fails. exc_type: {type(exc)} exc: {exc}',
                         exc_info=True)
         exit(-1)
