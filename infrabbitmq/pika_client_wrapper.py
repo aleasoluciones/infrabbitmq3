@@ -1,4 +1,5 @@
 from functools import wraps
+import time
 
 from pika import (
     URLParameters,
@@ -14,6 +15,7 @@ from infrabbitmq.exceptions import ClientWrapperError
 
 class PikaClientWrapper:
     DEFAULT_HEARTBEAT = 0
+    SLEEP_TIME_IN_SECONDS = 1
 
     def __init__(self, pika_library):
         self._connection = None
@@ -114,5 +116,8 @@ class PikaClientWrapper:
         if body and method_frame:
             self._channel.basic_ack(method_frame.delivery_tag)
             message_body['body'] = body
+        else:
+            # Workaround to avoid eat CPU
+            time.sleep(self.SLEEP_TIME_IN_SECONDS)
 
         return message_body
