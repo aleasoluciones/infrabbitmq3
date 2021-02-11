@@ -51,6 +51,14 @@ with description('PikaClientWrapper contract tests') as self:
 
             expect(self.sut._channel).to(be(self.pika_blocking_channel_spy))
 
+        with it('calls pika_library channel to prefetch just one message'):
+            when(self.pika_library_spy).BlockingConnection(pika_URLParameters(self.broker_uri)).returns(self.pika_blocking_connection_spy)
+            when(self.pika_blocking_connection_spy).channel().returns(self.pika_blocking_channel_spy)
+
+            self.sut.connect(self.broker_uri)
+
+            expect(self.pika_blocking_channel_spy.basic_qos).to(have_been_called_with(prefetch_size=0, prefetch_count=1, global_qos=True))
+
         with it('calls pika_library channel to confirm delivery'):
             when(self.pika_library_spy).BlockingConnection(pika_URLParameters(self.broker_uri)).returns(self.pika_blocking_connection_spy)
             when(self.pika_blocking_connection_spy).channel().returns(self.pika_blocking_channel_spy)
@@ -412,11 +420,6 @@ with description('PikaClientWrapper contract tests') as self:
 
                     expect(self.pika_blocking_channel_spy.basic_ack).to(have_been_called_with(self.a_delivery_tag))
 
-                with it('calls pika_library channel cancel'):
-                    self.sut.consume_one_message(queue_name=self.a_queue_name, timeout_in_seconds=self.timeout_in_seconds)
-
-                    expect(self.pika_blocking_channel_spy.cancel).to(have_been_called)
-
                 with it('returns a dict with key "body" and the message body as value'):
 
                     result = self.sut.consume_one_message(queue_name=self.a_queue_name, timeout_in_seconds=self.timeout_in_seconds)
@@ -431,11 +434,6 @@ with description('PikaClientWrapper contract tests') as self:
                     consume_result_from_pika_library = [(None, None, None)]
                     when(self.pika_blocking_channel_spy).consume(self.a_queue_name,
                                                                  inactivity_timeout=self.timeout_in_seconds).returns(consume_result_from_pika_library)
-
-                with it('calls pika_library channel cancel'):
-                    self.sut.consume_one_message(queue_name=self.a_queue_name, timeout_in_seconds=self.timeout_in_seconds)
-
-                    expect(self.pika_blocking_channel_spy.cancel).to(have_been_called)
 
                 with it('returns an empty dict'):
                     result = self.sut.consume_one_message(queue_name=self.a_queue_name, timeout_in_seconds=self.timeout_in_seconds)

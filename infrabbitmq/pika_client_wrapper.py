@@ -37,6 +37,7 @@ class PikaClientWrapper:
         broker_uri_with_heartbeat = self._build_broker_uri_with_heartbeat(broker_uri)
         self._connection = self._pika_library.BlockingConnection(URLParameters(broker_uri_with_heartbeat))
         self._channel = self._connection.channel()
+        self._channel.basic_qos(prefetch_size=0, prefetch_count=1, global_qos=True)
         self._channel.confirm_delivery()
 
     def _build_broker_uri_with_heartbeat(self, broker_uri):
@@ -115,7 +116,5 @@ class PikaClientWrapper:
                 self._channel.basic_ack(method_frame.delivery_tag)
                 message_body['body'] = body
             break
-
-        self._channel.cancel()
 
         return message_body
