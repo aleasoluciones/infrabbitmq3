@@ -19,6 +19,9 @@ class PikaClientWrapper:
         self._connection = None
         self._channel = None
         self._pika_library = pika_library
+        self._on_process_callback = None
+        self._event_builder = None
+        self._serializer = None
 
     def raise_client_wrapper_error(func):
         @wraps(func)
@@ -47,8 +50,6 @@ class PikaClientWrapper:
                 return f"{broker_uri}&{heartbeat_param}={self.DEFAULT_HEARTBEAT}"
             return f"{broker_uri}?{heartbeat_param}={self.DEFAULT_HEARTBEAT}"
         return broker_uri
-
-
 
     @raise_client_wrapper_error
     def disconnect(self):
@@ -119,3 +120,20 @@ class PikaClientWrapper:
         self._channel.cancel()
 
         return message_body
+
+    @raise_client_wrapper_error
+    def basic_consume(self, queue_name, process_event_function, event_builder, serializer):
+        self._process_event_function = process_event_function
+        self._event_builder = event_builder
+        self._serializer = serializer
+        self._channel.basic_consume(queue_name, self._on_message_callback)
+        self._channel.start_consuming()
+
+    def _on_message_callback(self, channel, method, properties, body):
+        message = self._deserialize(body)
+        event = self._event_builder.build(message)
+        self._channel.basic_ack(method.delivery_tag)
+        self._process_event_function(event)
+
+    def _deserialize(self, value):
+        return self._serializer.loads(value)

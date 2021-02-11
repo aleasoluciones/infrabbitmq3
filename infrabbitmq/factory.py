@@ -13,6 +13,7 @@ from infrabbitmq.rabbitmq import (
     RabbitMQClient,
     RabbitMQEventPublisher,
     RabbitMQQueueEventProcessor,
+    RabbitMQQueueCallbackEventProcessor,
 )
 from infrabbitmq.pika_client_wrapper import PikaClientWrapper
 from infrabbitmq.events_builders import (
@@ -90,6 +91,25 @@ def no_singleton_rabbitmq_queue_event_processor(queue_name, exchange, list_of_to
                                        exchange_type=exchange_type,
                                        logger=logger)
 
+def no_singleton_rabbitmq_queue_event_processor_with_callbacks(queue_name, exchange, list_of_topics, event_processor, serializer=None,
+                                                               queue_options=None, exchange_options=None, event_builder=None,
+                                                               exchange_type=TOPIC_EXCHANGE_TYPE, logger=logger):
+    if event_builder is None:
+        event_builder = felix_event_builder()
+
+    if serializer is None:
+        serializer = serializer_factory.json_or_pickle_serializer()
+
+    return RabbitMQQueueCallbackEventProcessor(queue_name=queue_name,
+                                               event_processor=event_processor,
+                                               rabbitmq_client=no_singleton_rabbitmq_client(serializer=serializer),
+                                               exchange=exchange,
+                                               list_of_topics=list_of_topics,
+                                               exchange_options=exchange_options or {},
+                                               queue_options=queue_options or {},
+                                               event_builder=event_builder,
+                                               exchange_type=exchange_type,
+                                               logger=logger)
 
 def _clock_service():
     return Singleton.instance("_clock_service", lambda: Clock())

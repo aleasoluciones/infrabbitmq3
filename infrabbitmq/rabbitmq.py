@@ -144,6 +144,15 @@ class RabbitMQClient:
                                      serializer=self._serializer,
                                      logger=self._logger)
 
+    def consume_with_callback(self, queue_name, process_event_function, event_builder):
+        try:
+            self.connected_client.basic_consume(queue_name, process_event_function, event_builder, self._serializer)
+        except ClientWrapperError as exc:
+            self._logger.info('Reconnecting, Error ClientWrapper {}'.format(exc),
+                              exc_info=True)
+            self.disconnect()
+            raise RabbitMQError(exc)
+
     def _serialize(self, value):
         return self._serializer.dumps(value)
 
@@ -285,6 +294,55 @@ class RabbitMQEventPublisher:
 
         _call_exchange_declare(exchange=self._exchange, exchange_type=exchange_type, durable=durable, arguments=arguments)
 
+
+class RabbitMQQueueCallbackEventProcessor:
+    def __init__(self, queue_name, event_processor, rabbitmq_client, exchange, list_of_topics, exchange_options, queue_options, event_builder, logger, exchange_type=TOPIC_EXCHANGE_TYPE):
+        self._queue_name = queue_name
+        self._event_processor = event_processor
+        self._rabbitmq_client = rabbitmq_client
+        self._exchange = exchange
+        self._list_of_topics = list_of_topics
+        self._exchange_options = exchange_options
+        self._queue_options = queue_options
+        self._event_builder = event_builder
+        self._exchange_type = exchange_type
+        self._logger = logger
+
+        self._connection_setup()
+
+    def process_body(self):
+        self._rabbitmq_client.consume_with_callback(queue_name=self._queue_name,
+                                                    process_event_function=self._event_processor.process,
+                                                    event_builder=self._event_builder)
+
+    def _connection_setup(self):
+        self._rabbitmq_client.disconnect()
+        self._declare_recurses()
+
+    def _declare_recurses(self):
+        self._declare_exchange()
+        self._declare_queue()
+        self._bind_queue_to_topics()
+
+    def _declare_exchange(self):
+        self._rabbitmq_client.exchange_declare(exchange=self._exchange,
+                                               exchange_type=self._exchange_type,
+                                               durable=self._exchange_options.get('durable', True),
+                                               auto_delete=self._exchange_options.get('auto_delete', False)
+                                               )
+
+    def _declare_queue(self):
+        self._rabbitmq_client.queue_declare(queue_name=self._queue_name,
+                                            durable=self._queue_options.get('durable', True),
+                                            auto_delete=self._queue_options.get('auto_delete', False),
+                                            message_ttl=self._queue_options.get('message_ttl')
+                                            )
+
+    def _bind_queue_to_topics(self):
+        for topic in self._list_of_topics:
+            self._rabbitmq_client.queue_bind(queue_name=self._queue_name,
+                                             exchange=self._exchange,
+                                             routing_key=topic)
 
 class RabbitMQQueueEventProcessor:
     def __init__(self, queue_name, event_processor, rabbitmq_client, exchange, list_of_topics, exchange_options, queue_options, event_builder, logger, exchange_type=TOPIC_EXCHANGE_TYPE):

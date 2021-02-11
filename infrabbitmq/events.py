@@ -15,3 +15,9 @@ class Event(infcommon.AttributesComparison):
     def topic(self):
         return '.'.join(map(str,
                         filter(None, (self.network, self.topic_prefix, self.name))))
+
+
+class ConsoleLogEventsProcessor(object):
+    def process(self, event):
+        format_str = '{event.timestamp} {event.network} {event.name} {event.id} {data}'
+        print(format_str.format(event=event, data=event.data))

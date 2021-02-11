@@ -79,6 +79,19 @@ def _queue_event_processor(queue_name, exchange, list_of_topics, event_processor
                                                                            logger=logger
                                                                            )
 
+def _queue_event_processor_with_callbacks(queue_name, exchange, list_of_topics, event_processor, message_ttl_milliseconds, serializer, event_builder, exchange_type, logger):
+    queue_options = {'message_ttl': message_ttl_milliseconds}
+    return infrabbitmq_factory.no_singleton_rabbitmq_queue_event_processor_with_callbacks(queue_name=queue_name,
+                                                                                          exchange=exchange,
+                                                                                          list_of_topics=list_of_topics,
+                                                                                          event_processor=event_processor,
+                                                                                          serializer=serializer,
+                                                                                          queue_options=queue_options,
+                                                                                          exchange_options=None,
+                                                                                          event_builder=event_builder,
+                                                                                          exchange_type=exchange_type,
+                                                                                          logger=logger
+                                                                                          )
 
 def _process_body_events(queue_name, exchange, list_of_topics, event_processor, message_ttl_milliseconds, serializer, event_builder, exchange_type, logger):
     logger.info("Connecting")
@@ -94,11 +107,26 @@ def _process_body_events(queue_name, exchange, list_of_topics, event_processor, 
     queue_event_processor.process_body()
 
 
+def _process_body_events_with_callbacks(queue_name, exchange, list_of_topics, event_processor, message_ttl_milliseconds, serializer, event_builder, exchange_type, logger):
+    logger.info("Connecting")
+    # Be aware. Each time this function is called, we are creating a new no_singleton_rabbitmq_queue_event_processor
+    queue_event_processor = _queue_event_processor_with_callbacks(queue_name, exchange,
+                                                                  list_of_topics,
+                                                                  event_processor,
+                                                                  message_ttl_milliseconds,
+                                                                  serializer,
+                                                                  event_builder,
+                                                                  exchange_type,
+                                                                  logger)
+    queue_event_processor.process_body()
+
+
 def main(factory, network,
          exchange, exchange_type,
          queue_name, list_of_topics,
          serialization, event_builder,
-         message_ttl_milliseconds):
+         message_ttl_milliseconds,
+         use_callbacks=False):
 
     _configure_sentry()
     infrabbitmq_factory.configure_pika_logger_to_error()
@@ -127,17 +155,30 @@ def main(factory, network,
     logger.info('{} deserializer {}'.format(processor_name, serializer))
 
     # Execute
-    utils.do_stuff_with_exponential_backoff((RabbitMQError,),
-                                            _process_body_events,
-                                            queue_name,
-                                            exchange,
-                                            list_of_topics,
-                                            LogProcessor(event_processor),
-                                            message_ttl_milliseconds,
-                                            serializer,
-                                            event_builder_instance,
-                                            exchange_type,
-                                            logger)
+    if use_callbacks:
+        utils.do_stuff_with_exponential_backoff((RabbitMQError,),
+                                                _process_body_events_with_callbacks,
+                                                queue_name,
+                                                exchange,
+                                                list_of_topics,
+                                                LogProcessor(event_processor),
+                                                message_ttl_milliseconds,
+                                                serializer,
+                                                event_builder_instance,
+                                                exchange_type,
+                                                logger)
+    else:
+        utils.do_stuff_with_exponential_backoff((RabbitMQError,),
+                                                _process_body_events,
+                                                queue_name,
+                                                exchange,
+                                                list_of_topics,
+                                                LogProcessor(event_processor),
+                                                message_ttl_milliseconds,
+                                                serializer,
+                                                event_builder_instance,
+                                                exchange_type,
+                                                logger)
 
 
 if __name__ == '__main__':
@@ -152,6 +193,7 @@ if __name__ == '__main__':
         parser.add_argument('-n', '--network', action='store', required=False, help='')
         parser.add_argument('-s', '--serialization', action="store", required=False, help="Select serialization Json, Pickle")
         parser.add_argument('-ttl', '--message-ttl-milliseconds', action='store', type=int, default=None, help='In milliseconds!')
+        parser.add_argument('-c', '--use-callbacks', action='store_true', default=False, help='Use basic_consume method to assign a callback to be called every time that RabbitMQ delivers messages to your event_processor')
         args = parser.parse_args()
 
         main(factory=args.factory, network=args.network,
@@ -159,7 +201,8 @@ if __name__ == '__main__':
              queue_name=args.queue_name, list_of_topics=args.list_of_topics,
              serialization=args.serialization,
              event_builder=args.event_builder,
-             message_ttl_milliseconds=args.message_ttl_milliseconds)
+             message_ttl_milliseconds=args.message_ttl_milliseconds,
+             use_callbacks=args.use_callbacks)
     except Exception as exc:
         logger.critical(f'EventProcessor Fails. exc_type: {type(exc)} exc: {exc}',
                         exc_info=True)
