@@ -117,4 +117,6 @@ class PikaClientWrapper:
                 message_body['body'] = body
             break
 
+        self._channel.cancel()
+
         return message_body
