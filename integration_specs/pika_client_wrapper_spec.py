@@ -420,6 +420,11 @@ with description('PikaClientWrapper contract tests') as self:
 
                     expect(self.pika_blocking_channel_spy.basic_ack).to(have_been_called_with(self.a_delivery_tag))
 
+                with it('calls pika_library channel cancel'):
+                    self.sut.consume_one_message(queue_name=self.a_queue_name, timeout_in_seconds=self.timeout_in_seconds)
+
+                    expect(self.pika_blocking_channel_spy.cancel).to(have_been_called)
+
                 with it('returns a dict with key "body" and the message body as value'):
 
                     result = self.sut.consume_one_message(queue_name=self.a_queue_name, timeout_in_seconds=self.timeout_in_seconds)
@@ -434,6 +439,11 @@ with description('PikaClientWrapper contract tests') as self:
                     consume_result_from_pika_library = [(None, None, None)]
                     when(self.pika_blocking_channel_spy).consume(self.a_queue_name,
                                                                  inactivity_timeout=self.timeout_in_seconds).returns(consume_result_from_pika_library)
+
+                with it('does NOT call pika_library channel cancel'):
+                    self.sut.consume_one_message(queue_name=self.a_queue_name, timeout_in_seconds=self.timeout_in_seconds)
+
+                    expect(self.pika_blocking_channel_spy.cancel).not_to(have_been_called)
 
                 with it('returns an empty dict'):
                     result = self.sut.consume_one_message(queue_name=self.a_queue_name, timeout_in_seconds=self.timeout_in_seconds)
