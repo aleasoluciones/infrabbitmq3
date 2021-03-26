@@ -9,7 +9,6 @@ import argparse
 from infcommon import (
     logger,
     utils,
-    logging_utils,
 )
 from infcommon.serializer import factory as serializer_factory
 from infrabbitmq import factory as infrabbitmq_factory
@@ -52,15 +51,6 @@ class LogProcessor:
         self._processor.process(event)
 
 
-def _configure_sentry():
-    sentry_conf = {
-        'level': 'CRITICAL',
-        'class': 'raven.handlers.logging.SentryHandler',
-        'dsn': getenv('SENTRY_DSN')
-    }
-    logging_utils.add_handler('sentry', sentry_conf)
-
-
 def _event_processor_name(factory_func_name):
     return factory_func_name.split('.')[-1:]
 
@@ -100,7 +90,6 @@ def main(factory, network,
          serialization, event_builder,
          message_ttl_milliseconds):
 
-    _configure_sentry()
     infrabbitmq_factory.configure_pika_logger_to_error()
 
     # Build event_processor
