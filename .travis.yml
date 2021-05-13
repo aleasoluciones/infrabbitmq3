@@ -11,7 +11,10 @@ python:
   - '3.7'
 
 env:
-  - BROKER_URI=amqp://infrabbit3:infrabbit3@$localhost:5673/
+  global:
+    - TEST_MODE=1
+    - DOCKER_HOST_IP=127.0.0.1
+    - BROKER_URI=amqp://infrabbit:infrabbit@$DOCKER_HOST_IP:5642
 
 branches:
   only:
