@@ -2,94 +2,26 @@
 
 [![Build status](https://secure.travis-ci.org/aleasoluciones/infrabbitmq3.svg?branch=master)](https://secure.travis-ci.org/aleasoluciones/infrabbitmq3)
 
-Infrastructure RabbitMQ Client.
-This is the migration from infrabbitmq which uses python2.7 and puka to a new infrabbitmq using python 3.x and pika
+Wrapper for the [pika](https://pika.readthedocs.io/en/stable/) library using Python 3.7.
 
-## Installation
+## Development
 
-### Requirements
+### Setup
 
-Add python 3.7 or above to your Linux host
-```
-$ sudo add-apt-repository ppa:deadsnakes/ppa
-$ sudo apt-get update
-$ sudo apt-get install python-virtualenv python3.7 python3.7-dev
-```
+Create a virtual environment, install dependencies and load environment variables.
 
-### Configure virtual environment
-You can use virtualenv wrapper (mkvirtualenv)
-```
-$ mkvirtualenv -p $(which python3) infrabbitmq3
-```
-Or default virtualenv
-```
-$ cd /home/USER/DEV_WORKSPACE/infrabbitmq3
-$ virtualenv -p $(which python3.7) infrabbitmq3_ve
-$ source infrabbitmq3_ve/bin/activate
+```sh
+mkvirtualenv infrabbitmq3 -p $(which python3.7)
+dev/setup_venv.sh
+source dev/env_develop
 ```
 
-Remember that virtualenv creates the virtual_env_directory directly at the actual path
-Remember to exclude virtualenv directory from git
+Run dependencies (in this case, a RabbitMQ docker container).
 
-### Install dependencies
-Inside your virtualenv, run `dev/setup_venv.sh`
-
-### Set environment
-Inside your virtualenv, run `source dev/env_develops`
-
-### Run at localhost
-Start a rabbitmq server
-```
-$ dev/start_local_dependencies.sh
+```sh
+dev/start_infrabbitmq3_dependencies.sh
 ```
 
-Stop a rabbitmq server
-```
-$ dev/stop_local_dependencies.sh
-```
+### Running tests, linter & formatter and configure git hooks
 
-## Running test locally
-First, start local dependencies
-
-## Unit tests
-```
-$ dev/unit_tests.sh
-```
-
-## Integration tests
-```
-$ dev/local_integration_tests.sh
-```
-
-## Factory tests
-```
-$ dev/local_factory_tests.sh
-```
-
-## All tests
-```
-$ dev/all_local_tests.sh
-```
-
-## Running test without starting local dependencies
-Integration and factory tests will start and stop a rabbitmq dockerized
-
-## Unit tests
-```
-$ dev/unit_tests.sh
-```
-
-## Integration tests
-```
-$ dev/integration_tests.sh
-```
-
-## Factory tests
-```
-$ dev/factory_tests.sh
-```
-
-## All tests
-```
-$ dev/all_tests.sh
-```
+Note that this project uses Alea's [pydevlib](https://github.com/aleasoluciones/pydevlib), so take a look at its README or run the command `pydevlib` from the virtual environment to see a summary of the available commands.

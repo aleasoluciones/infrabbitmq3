@@ -1,32 +1,38 @@
-language: python
-python:
-  - "3.6"
-  - "3.7"
-
 services:
   - docker
+
+os: linux
+
+dist: focal
+
+language: python
+
+python:
+  - '3.7'
 
 env:
   - BROKER_URI=amqp://infrabbit3:infrabbit3@$localhost:5673/
 
-# safelist branch to build
 branches:
   only:
     - master
 
-before_install:
-  - sudo sysctl -w net.ipv6.conf.all.disable_ipv6=1
-  - sudo sysctl -w net.ipv6.conf.default.disable_ipv6=1
-
 install:
+  - pip install pip --upgrade
   - python setup.py develop
   - pip install -r requirements.txt
   - pip install -r requirements-dev.txt
 
+before_script:
+  - echo $DOCKERHUB_TOKEN | docker login -u $DOCKERHUB_USER --password-stdin
+  - dev/start_infrabbitmq3_dependencies.sh
+
 script:
   - sleep 20
-  - echo $DOCKERHUB_TOKEN | docker login -u $DOCKERHUB_USER --password-stdin
-  - ./dev/all_tests.sh
+  - all_tests
+
+after_script:
+  - dev/stop_infrabbitmq3_dependencies.sh
   - docker logout
 
 notifications:
