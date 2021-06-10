@@ -1,6 +1,6 @@
 # infrabbitmq3
 
-[![Build status](https://secure.travis-ci.org/aleasoluciones/infrabbitmq3.svg?branch=master)](https://secure.travis-ci.org/aleasoluciones/infrabbitmq3)
+[![Build status](https://travis-ci.com/aleasoluciones/infrabbitmq3.svg?branch=master)](https://travis-ci.com/aleasoluciones/infrabbitmq3)
 
 Wrapper for the [pika](https://pika.readthedocs.io/en/stable/) library using Python 3.7.
 
