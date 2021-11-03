@@ -1,12 +1,11 @@
-# Rabbitmq
-rabbit_infrabbit3:
+rabbitmq:
   image: aleasoluciones/rabbitmq-delayed-message:0.2
   hostname: infrabbit3-dev
   environment:
-    - RABBITMQ_DEFAULT_USER=infrabbit
-    - RABBITMQ_DEFAULT_PASS=infrabbit
+    - RABBITMQ_DEFAULT_USER=${BROKER_USER}
+    - RABBITMQ_DEFAULT_PASS=${BROKER_PASS}
   ports:
-    - "15642:15672"
-    - "5642:5672"
+    - "${BROKER_MANAGEMENT_PORT}:15672"
+    - "${BROKER_PORT}:5672"
   volumes:
     - /etc/localtime:/etc/localtime:ro

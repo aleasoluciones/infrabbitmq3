@@ -1,7 +1,13 @@
 #!/bin/bash
 
-pip install pip --upgrade
-python setup.py develop
-#for package in $(ls -d */); do pushd $package; if [ -e setup.py ]; then python setup.py develop; fi; popd; done
-pip install -r requirements.txt --upgrade
-pip install -r requirements-dev.txt --upgrade
+if [ -z "$VIRTUAL_ENV" ]; then
+    echo "You need to be on a virtual environment to install dev dependencies"
+else
+    python -m pip install --upgrade pip wheel
+
+    python -m pip install --upgrade -r requirements-versioned.txt
+    python -m pip install --upgrade -r requirements-git.txt
+    python -m pip install --upgrade -r requirements-dev.txt
+
+    python -m pip install --upgrade -e .
+fi

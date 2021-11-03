@@ -1,6 +1,11 @@
 #!/bin/bash
 
 export DOCKER_HOST_IP=127.0.0.1
-export BROKER_URI=amqp://infrabbit:infrabbit@$DOCKER_HOST_IP:5642
+export BROKER_MANAGEMENT_PORT=15642
+export BROKER_PORT=5642
+export BROKER_USER=infrabbit
+export BROKER_PASS=infrabbit
+
+export BROKER_URI=amqp://${BROKER_USER}:${BROKER_PASS}@${DOCKER_HOST_IP}:${BROKER_PORT}
 
 export TEST_MODE=1
