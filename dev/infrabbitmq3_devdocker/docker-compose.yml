@@ -1,5 +1,5 @@
 rabbitmq:
-  image: aleasoluciones/rabbitmq-delayed-message:0.2
+  image: aleasoluciones/rabbitmq-delayed-message:0.3
   hostname: infrabbit3-dev
   environment:
     - RABBITMQ_DEFAULT_USER=${BROKER_USER}

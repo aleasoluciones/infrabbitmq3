@@ -1,9 +1,11 @@
 #!/bin/bash
 
 find . -name *pyc* -delete
-source "dev/env_develop"
 
-docker-compose -f dev/infrabbitmq3_devdocker/docker-compose.yml up -d
+SCRIPTPATH=`dirname $(realpath $0)`
+. ${SCRIPTPATH}/env_develop
+
+docker-compose -f ${SCRIPTPATH}/infrabbitmq3_devdocker/docker-compose.yml up -d
 
 # Wait for rabbit and redis ports to be available
 TIMEOUT=30
