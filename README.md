@@ -1,8 +1,8 @@
 # infrabbitmq3
 
-[![Build status](https://travis-ci.com/aleasoluciones/infrabbitmq3.svg?branch=master)](https://travis-ci.com/aleasoluciones/infrabbitmq3)
+[![Build status](https://travis-ci.com/aleasoluciones/infrabbitmq3.svg?branch=master)](https://travis-ci.com/aleasoluciones/infrabbitmq3) ![Python versions supported](https://img.shields.io/badge/supports%20python-3.7%20|%203.8%20|%203.9-blue.svg)
 
-Wrapper for the [pika](https://pika.readthedocs.io/en/stable/) library using Python 3.7.
+Wrapper for the [pika](https://pika.readthedocs.io/en/stable/) library using Python 3.
 
 ## Development
 
