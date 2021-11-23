@@ -115,7 +115,6 @@ class PikaClientWrapper:
             if body and method_frame:
                 self._channel.basic_ack(method_frame.delivery_tag)
                 message_body['body'] = body
-                self._channel.cancel()
             break
 
         return message_body

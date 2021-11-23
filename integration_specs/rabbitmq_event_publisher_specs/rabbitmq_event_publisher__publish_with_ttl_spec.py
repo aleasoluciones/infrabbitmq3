@@ -79,6 +79,10 @@ with description('RabbitMQEventPublisher integration test: Feature publish_with_
                     ttl_milliseconds = 3000
 
                     self.sut_event_publisher.publish(AN_EVENT_NAME, A_NETWORK, data=AN_EVENT_DATA)
+                    # We cannot publish message with ttl inmediately because process_body will consume both with and without ttl messages.
+                    # The second one is delivered (not acknowledge) but it will be processed by consumer also.
+                    # So, to reproduce our requeriments, we need to publish a total of 3 messages
+                    self.sut_event_publisher.publish(AN_EVENT_NAME, A_NETWORK, data=AN_EVENT_DATA)
                     self.sut_event_publisher.publish_with_ttl(AN_EVENT_NAME, A_NETWORK, ttl_milliseconds, data=ANOTHER_EVENT_DATA)
                     self.sut_event_processor.process_body(max_iterations=1)
                     sleep(4)
@@ -90,7 +94,7 @@ with description('RabbitMQEventPublisher integration test: Feature publish_with_
                                                                                             timestamp=be_a(float),
                                                                                             timestamp_str=have_len(be_above_or_equal(1))
                                                                                             )
-                                                                                  ).once
+                                                                                  ).twice
                                                             )
                     expect(self.event_processor.process).not_to(have_been_called_with(have_keys(name=AN_EVENT_NAME,
                                                                                                 network=A_NETWORK,
