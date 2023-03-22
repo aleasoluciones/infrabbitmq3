@@ -1,6 +1,8 @@
 # infrabbitmq3
 
-[![Build status](https://travis-ci.com/aleasoluciones/infrabbitmq3.svg?branch=master)](https://travis-ci.com/aleasoluciones/infrabbitmq3) ![Python versions supported](https://img.shields.io/badge/supports%20python-3.7%20|%203.8%20|%203.9-blue.svg)
+[![CI](https://github.com/aleasoluciones/infrabbitmq3/actions/workflows/ci.yml/badge.svg)](https://github.com/aleasoluciones/infrabbitmq3/actions/workflows/ci.yml)
+![Python versions supported](https://img.shields.io/badge/supports%20python-3.9%20|%203.10%20|%203.11-blue.svg)
+
 
 Wrapper for the [pika](https://pika.readthedocs.io/en/stable/) library using Python 3.
 
@@ -11,7 +13,7 @@ Wrapper for the [pika](https://pika.readthedocs.io/en/stable/) library using Pyt
 Create a virtual environment, install dependencies and load environment variables.
 
 ```sh
-mkvirtualenv infrabbitmq3 -p $(which python3.7)
+mkvirtualenv infrabbitmq3 -p $(which python3.11)
 dev/setup_venv.sh
 source dev/env_develop
 ```

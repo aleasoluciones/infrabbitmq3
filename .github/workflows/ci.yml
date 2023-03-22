@@ -10,10 +10,26 @@ jobs:
 
         strategy:
             matrix:
-                python-version: [ '3.9', '3.10', '3.11' ]
+                python-version: ['3.9', '3.10', '3.11']
+        env:
+            TEST_MODE: 1
+            DOCKER_COMPOSE_ETC: './dev/devdocker/'
+            CONF_FILE: /tmp/
+            BROKER_URI: amqp://infrabbit:infrabbit@127.0.0.1:5642
 
+
+        services:
+            rabbitmq:
+                image: aleasoluciones/rabbitmq-delayed-message:0.3
+                env:
+                    RABBITMQ_DEFAULT_USER: infrabbit
+                    RABBITMQ_DEFAULT_PASS: infrabbit
+                ports:
+                    - 15642:15672
+                    - 5642:5672
+                volumes:
+                    - /etc/localtime:/etc/localtime:ro
         steps:
-            -   uses: syphar/restore-virtualenv@v1
 
             -   name: Checkout code
                 uses: actions/checkout@v3.3.0
@@ -23,11 +39,23 @@ jobs:
                 with:
                     python-version: ${{ matrix.python-version }}
 
-            -   name: Source
-                run: source dev/env_develop
 
             -   name: Install dependencies
-                run: dev/setup_venv.sh
+                run: |
+                    python -m pip install --upgrade pip wheel setuptools
+                    python -m pip install -r requirements-versioned.txt
+                    python -m pip install -r requirements-dev.txt
+                    python -m pip install -r requirements-git.txt
+                    python -m pip install -e .
+
+            -   name: Docker ps
+                run: docker ps
 
             -   name: Unit tests
                 run: unit_tests
+
+            -   name: Integration tests
+                run: integration_tests
+
+            -   name: Factory tests
+                run: factory_tests
