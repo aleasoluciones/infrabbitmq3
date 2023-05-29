@@ -53,11 +53,10 @@ class RabbitMQClient:
         try:
             self.connected_client.disconnect()
         except Exception as exc:
-            self._logger.info('{} disconnect fails: {} {}'.format(self.__class__.__name__,
-                                                                  type(exc),
-                                                                  exc),
-                              exc_info=True
-                              )
+            self._logger.info(
+                f'{self.__class__.__name__} disconnect fails: {type(exc)} {exc}',
+                exc_info=True,
+            )
         finally:
             self._connected_client = None
 
@@ -126,17 +125,17 @@ class RabbitMQClient:
     def consume_next(self, queue_name, timeout=1):
         try:
             while True:
-                next_message = self.connected_client.consume_one_message(queue_name=queue_name, timeout_in_seconds=timeout)
-                if next_message:
+                if next_message := self.connected_client.consume_one_message(
+                    queue_name=queue_name, timeout_in_seconds=timeout
+                ):
                     next_message['body'] = self._deserialize(next_message['body'])
                     yield RabbitMQMessage(next_message)
                 else:
                     yield None
         except ClientWrapperError as exc:
-            self._logger.info('Reconnecting, Error ClientWrapper {}'.format(exc),
-                              exc_info=True)
+            self._logger.info(f'Reconnecting, Error ClientWrapper {exc}', exc_info=True)
             self.disconnect()
-            raise RabbitMQError(exc)
+            raise RabbitMQError(exc) from exc
 
     @raise_rabbitmq_error
     def consume_pending(self, queue_name, timeout=1):
@@ -250,8 +249,10 @@ class RabbitMQEventPublisher:
         self._exchange_declare(exchange_type=TOPIC_EXCHANGE_TYPE, durable=True)
 
         event = self._build_an_event_with_timestamp(event_name, network=network, data=data, id=id, topic_prefix=topic_prefix)
-        message_header = {'expiration': str(ttl_milliseconds)}
-        message_header['persistent'] = persistent
+        message_header = {
+            'expiration': str(ttl_milliseconds),
+            'persistent': persistent,
+        }
         self._publish_an_event(event=event, message_header=message_header)
 
     def publish_with_delay(self, event_name, network, delay_milliseconds=0, data=None, id=None, topic_prefix=None, persistent=False):
@@ -259,17 +260,21 @@ class RabbitMQEventPublisher:
         self._exchange_declare(exchange_type=X_DELAYED, durable=True, arguments=exchange_arguments)
 
         event = self._build_an_event_with_timestamp(event_name, network=network, data=data, id=id, topic_prefix=topic_prefix)
-        message_header = {'x-delay': str(delay_milliseconds)}
-        message_header['persistent'] = persistent
+        message_header = {'x-delay': str(delay_milliseconds), 'persistent': persistent}
         self._publish_an_event(event=event, message_header=message_header)
 
     def _build_an_event_with_timestamp(self, event_name, network, data, id, topic_prefix):
         now = self._clock_service.now()
         timestamp = self._clock_service.timestamp(now)
-        event = Event(event_name, network=network, data=data, id=id, topic_prefix=topic_prefix,
-                      timestamp=timestamp, timestamp_str=str(now))
-
-        return event
+        return Event(
+            event_name,
+            network=network,
+            data=data,
+            id=id,
+            topic_prefix=topic_prefix,
+            timestamp=timestamp,
+            timestamp_str=str(now),
+        )
 
     def _publish_an_event(self, event, message_header=None):
         @retry(wait_exponential_multiplier=self.WAIT_EXPONENTIAL_MULTIPLIER_IN_MILLISECONDS, stop_max_attempt_number=self.MAX_PUBLISHING_RETRIES)
@@ -314,11 +319,10 @@ class RabbitMQQueueEventProcessor:
                     message = self._event_builder.build(raw_message.body)
                     self._event_processor.process(message)
                 except Exception as exc:
-                    self._logger.critical('Error processing from queue: {} raw_message:{} with exc_type:{} exc:{}'.format(self._queue_name,
-                                                                                                                          raw_message,
-                                                                                                                          type(exc),
-                                                                                                                          exc),
-                                          exc_info=True)
+                    self._logger.critical(
+                        f'Error processing from queue: {self._queue_name} raw_message:{raw_message} with exc_type:{type(exc)} exc:{exc}',
+                        exc_info=True,
+                    )
             if max_iterations is not None and index >= max_iterations:
                 return
 

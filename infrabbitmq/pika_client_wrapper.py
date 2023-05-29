@@ -46,8 +46,8 @@ class PikaClientWrapper:
 
     def _build_broker_uri_with_heartbeat(self, broker_uri):
         heartbeat_param = 'heartbeat'
-        existing_query_params = '?'
         if heartbeat_param not in broker_uri:
+            existing_query_params = '?'
             if existing_query_params in broker_uri:
                 return f"{broker_uri}&{heartbeat_param}={self.DEFAULT_HEARTBEAT}"
             return f"{broker_uri}?{heartbeat_param}={self.DEFAULT_HEARTBEAT}"
