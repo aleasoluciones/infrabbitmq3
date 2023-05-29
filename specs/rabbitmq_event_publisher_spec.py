@@ -66,36 +66,42 @@ with description('RabbitMQEventPublisher tests') as self:
                                                                                                   id=an_id,
                                                                                                   timestamp=be_a(float),
                                                                                                   timestamp_str=have_len(be_above_or_equal(1))
-                                                                                                  )
+                                                                                                  ),
+                                                                          headers=have_key('persistent', False)
                                                                           )
                                                     )
 
     with context('Feature: publish_event_object'):
         with context('when the event has NOT timestamp and/or timestamp_str'):
-            with it('publishes the event with the actual timestamp and timestamp_str'):
-                a_topic_prefix = 'a_topic_prefix'
-                a_data = 'a_data'
-                an_id = 'an_id'
-                an_event_without_timestamp = Event(AN_EVENT_NAME,
+            with before.each:
+                self.a_data = 'a_data'
+                self.an_id = 'an_id'
+                self.an_event_without_timestamp = Event(AN_EVENT_NAME,
                                                    network=A_NETWORK,
-                                                   data=a_data,
+                                                   data=self.a_data,
                                                    topic_prefix=A_TOPIC_PREFIX,
-                                                   id=an_id,
+                                                   id=self.an_id,
                                                    timestamp=None,
                                                    timestamp_str=None)
 
-                self.sut.publish_event_object(an_event_without_timestamp)
+            with it('publishes the event with the actual timestamp and timestamp_str'):
+                self.sut.publish_event_object(self.an_event_without_timestamp)
 
                 expect(self.rabbitmq_client.publish).to(have_been_called_with(message=have_properties(name=AN_EVENT_NAME,
                                                                                                       network=A_NETWORK,
-                                                                                                      data=a_data,
+                                                                                                      data=self.a_data,
                                                                                                       topic_prefix=A_TOPIC_PREFIX,
-                                                                                                      id=an_id,
+                                                                                                      id=self.an_id,
                                                                                                       timestamp=be_a(float),
                                                                                                       timestamp_str=have_len(be_above_or_equal(1))
                                                                                                       )
                                                                               )
                                                         )
+
+            with it('calls rabbitmq_client publish with no headers'):
+                self.sut.publish_event_object(self.an_event_without_timestamp)
+
+                expect(self.rabbitmq_client.publish).to(have_been_called_with(headers=have_key('persistent', False)))
 
         with context('when the event has timestamp and/or timestamp_str'):
             with it('publishes the event with the received timestamp and timestamp_str'):
@@ -145,6 +151,11 @@ with description('RabbitMQEventPublisher tests') as self:
 
             expect(self.rabbitmq_client.publish).to(have_been_called_with(headers=have_key('expiration', str(A_TTL_MILLISECONDS_IN_NUMBER))))
 
+        with it('calls rabbitmq_client publish with persistent header as False by default'):
+            self.sut.publish_with_ttl(AN_EVENT_NAME, A_NETWORK, A_TTL_MILLISECONDS_IN_NUMBER)
+
+            expect(self.rabbitmq_client.publish).to(have_been_called_with(headers=have_key('persistent', False)))
+
     with context('Feature: publish_with_delay'):
         with context('Declaring exchange'):
             with it('calls rabbitmq_client exchange_declare with exchange name and durable attributes'):
@@ -184,6 +195,11 @@ with description('RabbitMQEventPublisher tests') as self:
                 self.sut.publish_with_delay(AN_EVENT_NAME, A_NETWORK, delay_milliseconds=A_DELAY_MILLISECONDS_IN_NUMBER)
 
                 expect(self.rabbitmq_client.publish).to(have_been_called_with(headers=have_key('x-delay', str(A_DELAY_MILLISECONDS_IN_NUMBER))))
+
+            with it('calls rabbitmq_client publish with persistent header as False by default'):
+                self.sut.publish_with_delay(AN_EVENT_NAME, A_NETWORK, delay_milliseconds=A_DELAY_MILLISECONDS_IN_NUMBER)
+
+                expect(self.rabbitmq_client.publish).to(have_been_called_with(headers=have_key('persistent', False)))
 
     with context('When any calls to rabbitmq_client fails (UNHAPPY PATH)'):
         with context('exchange declare fails (used by publish, publish_event_object, publish_with_delay or publish_with_ttl)'):

@@ -17,6 +17,8 @@ X_DELAYED = 'x-delayed-message'
 # # (hash) can substitute for zero or more words.
 
 
+# pylint: disable=E0213
+# pylint: disable=E1102
 class RabbitMQClient:
     def __init__(self, broker_uri, serializer, pika_client_wrapper, logger):
         self._broker_uri = broker_uri.replace('rabbitmq', 'amqp')
@@ -179,6 +181,8 @@ class RabbitMQMessage:
         return str(self.body)
 
 
+# pylint: disable=E0213
+# pylint: disable=E1102
 class RabbitMQQueueIterator:
     def __init__(self, queue_name, pika_client_wrapper, timeout_in_seconds, serializer, logger):
         self._queue_name = queue_name
@@ -229,32 +233,34 @@ class RabbitMQEventPublisher:
         self._clock_service = clock_service
         self._exchange = exchange
 
-    def publish(self, event_name, network, data=None, id=None, topic_prefix=None):
+    def publish(self, event_name, network, data=None, id=None, topic_prefix=None, persistent=False):
         event = self._build_an_event_with_timestamp(event_name, network=network, data=data, id=id, topic_prefix=topic_prefix)
-        self.publish_event_object(event=event)
+        self.publish_event_object(event=event, persistent=persistent)
 
-    def publish_event_object(self, event):
+    def publish_event_object(self, event, persistent=False):
         if not event.timestamp or not event.timestamp_str:
             now = self._clock_service.now()
             event.timestamp = self._clock_service.timestamp(now)
             event.timestamp_str = str(now)
-
+        message_header = {'persistent': persistent}
         self._exchange_declare(exchange_type=TOPIC_EXCHANGE_TYPE, durable=True)
-        self._publish_an_event(event=event)
+        self._publish_an_event(event=event, message_header=message_header)
 
-    def publish_with_ttl(self, event_name, network, ttl_milliseconds, data=None, id=None, topic_prefix=None):
+    def publish_with_ttl(self, event_name, network, ttl_milliseconds, data=None, id=None, topic_prefix=None, persistent=False):
         self._exchange_declare(exchange_type=TOPIC_EXCHANGE_TYPE, durable=True)
 
         event = self._build_an_event_with_timestamp(event_name, network=network, data=data, id=id, topic_prefix=topic_prefix)
         message_header = {'expiration': str(ttl_milliseconds)}
+        message_header['persistent'] = persistent
         self._publish_an_event(event=event, message_header=message_header)
 
-    def publish_with_delay(self, event_name, network, delay_milliseconds=0, data=None, id=None, topic_prefix=None):
+    def publish_with_delay(self, event_name, network, delay_milliseconds=0, data=None, id=None, topic_prefix=None, persistent=False):
         exchange_arguments = {'x-delayed-type': 'topic'}
         self._exchange_declare(exchange_type=X_DELAYED, durable=True, arguments=exchange_arguments)
 
         event = self._build_an_event_with_timestamp(event_name, network=network, data=data, id=id, topic_prefix=topic_prefix)
         message_header = {'x-delay': str(delay_milliseconds)}
+        message_header['persistent'] = persistent
         self._publish_an_event(event=event, message_header=message_header)
 
     def _build_an_event_with_timestamp(self, event_name, network, data, id, topic_prefix):

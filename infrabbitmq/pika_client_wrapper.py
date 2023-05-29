@@ -12,8 +12,12 @@ from pika import exceptions as pika_exceptions
 from infrabbitmq.exceptions import ClientWrapperError
 
 
+# pylint: disable=E0213
+# pylint: disable=E1102
 class PikaClientWrapper:
     DEFAULT_HEARTBEAT = 0
+    DEFAULT_DELIVERY_MODE = None
+    PERSISTENT_DELIVERY_MODE = 2
 
     def __init__(self, pika_library):
         self._connection = None
@@ -101,12 +105,13 @@ class PikaClientWrapper:
         self._channel.basic_publish(exchange=exchange, routing_key=routing_key, body=body, properties=properties, mandatory=False)
 
     def _build_properties_for_basic_publish(self, headers):
+        delivery_mode = self.PERSISTENT_DELIVERY_MODE if headers.get('persistent') == True else self.DEFAULT_DELIVERY_MODE
         if 'expiration' in headers.keys():
-            return BasicProperties(expiration=headers['expiration'])
+            return BasicProperties(expiration=headers['expiration'], delivery_mode=delivery_mode)
         elif 'x-delay' in headers.keys():
-            return BasicProperties(headers=headers)
+            return BasicProperties(headers=headers, delivery_mode=delivery_mode)
 
-        return BasicProperties()
+        return BasicProperties(delivery_mode=delivery_mode)
 
     @raise_client_wrapper_error
     def consume_one_message(self, queue_name, timeout_in_seconds=1):
