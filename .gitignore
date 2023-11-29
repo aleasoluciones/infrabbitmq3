@@ -63,3 +63,6 @@ target/
 .*.sw[po]
 
 tags*
+
+# pyenv
+.python-version
