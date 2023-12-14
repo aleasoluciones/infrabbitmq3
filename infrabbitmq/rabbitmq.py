@@ -128,8 +128,9 @@ class RabbitMQClient:
     def consume_next(self, queue_name, timeout=1):
         try:
             while True:
-                next_message = self.connected_client.consume_one_message(queue_name=queue_name, timeout_in_seconds=timeout)
-                if next_message:
+                if next_message := self.connected_client.consume_one_message(
+                    queue_name=queue_name, timeout_in_seconds=timeout
+                ):
                     next_message['body'] = self._deserialize(self._compressor.decompress(next_message['body'], self._is_decompression_enable(next_message['properties'])))
                     yield RabbitMQMessage(next_message)
                 else:
@@ -160,7 +161,9 @@ class RabbitMQClient:
         return bool(kwargs.get('headers', {}).get(COMPRESS_KEY, False))
 
     def _is_decompression_enable(self, properties):
-        return bool(properties.get('headers', {}).get(COMPRESS_KEY, False))
+        if not properties.get('headers', False):
+            return False
+        return bool(properties.get('headers').get(COMPRESS_KEY, False))
 
 
 class RabbitMQMessage:
@@ -235,7 +238,9 @@ class RabbitMQQueueIterator:
         return RabbitMQMessage(message)
 
     def _is_decompression_enable(self, properties):
-        return bool(properties.get('headers', {}).get(COMPRESS_KEY, False))
+        if not properties.get('headers', False):
+            return False
+        return bool(properties.get('headers').get(COMPRESS_KEY, False))
 
 
 class RabbitMQEventPublisher:
