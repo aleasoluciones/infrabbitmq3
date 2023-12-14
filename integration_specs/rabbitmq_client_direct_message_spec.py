@@ -15,9 +15,10 @@ from infrabbitmq.rabbitmq import (
     DIRECT_EXCHANGE_TYPE,
 )
 from infrabbitmq.pika_client_wrapper import PikaClientWrapper
+from infrabbitmq import factory
 
 MY_DIRECT_EXCHANGE_NAME = 'my_direct_exchange_name'
-A_QUEUE_NAME = 'a_queue_name_{}'.format(getpid())
+A_QUEUE_NAME = f'a_queue_name_{getpid()}'
 
 DEFAULT_ROUTING_KEY = ''
 
@@ -32,10 +33,12 @@ with description('RabbitMQClient Integration tests - Consuming and publishing Di
         self.serializer = serializer_factory.json_serializer()
         self.pika_wrapper_client = PikaClientWrapper(pika_library=pika)
         self.logger = logger
+        self.compressor = factory._compressor()
         self.sut = RabbitMQClient(self.broker_uri,
                                   self.serializer,
                                   self.pika_wrapper_client,
-                                  self.logger)
+                                  self.logger,
+                                  self.compressor)
 
         self.sut.exchange_declare(exchange=MY_DIRECT_EXCHANGE_NAME, exchange_type=DIRECT_EXCHANGE_TYPE)
         self.sut.queue_declare(queue_name=A_QUEUE_NAME, auto_delete=False)

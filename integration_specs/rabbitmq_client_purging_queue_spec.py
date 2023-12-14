@@ -16,11 +16,12 @@ from infrabbitmq.rabbitmq import (
     TOPIC_EXCHANGE_TYPE,
 )
 from infrabbitmq.pika_client_wrapper import PikaClientWrapper
+from infrabbitmq import factory
 
 MY_DIRECT_EXCHANGE_NAME = 'my_direct_exchange_name'
 MY_TOPIC_EXCHANGE_NAME = 'my_topic_exchange_name'
-MY_DIRECT_QUEUE_NAME = 'my_direct_queue_name_{}'.format(getpid())
-MY_TOPIC_QUEUE_NAME = 'my_topic_queue_name_{}'.format(getpid())
+MY_DIRECT_QUEUE_NAME = f'my_direct_queue_name_{getpid()}'
+MY_TOPIC_QUEUE_NAME = f'my_topic_queue_name_{getpid()}'
 
 DEFAULT_ROUTING_KEY = ''
 MY_ROUTING_KEY = '#'
@@ -36,10 +37,12 @@ with description('RabbitMQClient Integration tests - Purging a queue') as self:
         self.serializer = serializer_factory.json_serializer()
         self.pika_wrapper_client = PikaClientWrapper(pika_library=pika)
         self.logger = logger
+        self.compressor = factory._compressor()
         self.sut = RabbitMQClient(self.broker_uri,
                                   self.serializer,
                                   self.pika_wrapper_client,
-                                  self.logger)
+                                  self.logger,
+                                  self.compressor)
 
     with context('when purging a queue (direct exchange)'):
         with before.each:

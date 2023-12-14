@@ -23,6 +23,7 @@ IRRELEVANT_EXCEPTION_REPLY_TEXT = 'irrelevant_exception_reply_text'
 A_BROKER_URI_WITH_NO_QUERY_PARAMETERS = environ['BROKER_URI']
 A_BROKER_URI_WITH_QUERY_PARAMETERS_AND_NO_HEARTBEAT = f"{A_BROKER_URI_WITH_NO_QUERY_PARAMETERS}?connection_attempts=3"
 A_BROKER_URI_WITH_HEARTBEAT = f"{A_BROKER_URI_WITH_NO_QUERY_PARAMETERS}?heartbeat=60"
+EMPTY_HEADERS = {}
 
 
 with description('PikaClientWrapper contract tests') as self:
@@ -328,7 +329,7 @@ with description('PikaClientWrapper contract tests') as self:
                                        routing_key=self.a_routing_key,
                                        body=self.a_body)
 
-                expected_properties = pika_BasicProperties()
+                expected_properties = pika_BasicProperties(headers=EMPTY_HEADERS)
                 expect(self.pika_blocking_channel_spy.basic_publish).to(have_been_called_with(exchange=self.an_exchange,
                                                                                               routing_key=self.a_routing_key,
                                                                                               body=self.a_body,
@@ -339,14 +340,15 @@ with description('PikaClientWrapper contract tests') as self:
             with context('when publish has additional options (i.e. headers)'):
                 with context('when delivery mode is persistent'):
                     with it('calls pika_library channel basic_publish with delivery_mode with value 2 (persistent)'):
-                        publish_other_parameters = {'headers': {'persistent': True}}
+                        headers = {'persistent': True}
+                        publish_other_parameters = {'headers': headers}
 
                         self.sut.basic_publish(exchange=self.an_exchange,
                                                routing_key=self.a_routing_key,
                                                body=self.a_body,
                                                **publish_other_parameters)
 
-                        expected_properties = pika_BasicProperties(delivery_mode=self.sut.PERSISTENT_DELIVERY_MODE)
+                        expected_properties = pika_BasicProperties(delivery_mode=self.sut.PERSISTENT_DELIVERY_MODE, headers=headers)
                         expect(self.pika_blocking_channel_spy.basic_publish).to(have_been_called_with(exchange=self.an_exchange,
                                                                                                       routing_key=self.a_routing_key,
                                                                                                       body=self.a_body,
@@ -356,14 +358,15 @@ with description('PikaClientWrapper contract tests') as self:
 
                 with context('when delivery mode is NOT persistent'):
                     with it('calls pika_library channel basic_publish with delivery_mode with value None (non persistent)'):
-                        publish_other_parameters = {'headers': {'persistent': False}}
+                        headers = {'persistent': False}
+                        publish_other_parameters = {'headers': headers}
 
                         self.sut.basic_publish(exchange=self.an_exchange,
                                                routing_key=self.a_routing_key,
                                                body=self.a_body,
                                                **publish_other_parameters)
 
-                        expected_properties = pika_BasicProperties(delivery_mode=self.sut.DEFAULT_DELIVERY_MODE)
+                        expected_properties = pika_BasicProperties(delivery_mode=self.sut.DEFAULT_DELIVERY_MODE, headers=headers)
                         expect(self.pika_blocking_channel_spy.basic_publish).to(have_been_called_with(exchange=self.an_exchange,
                                                                                                       routing_key=self.a_routing_key,
                                                                                                       body=self.a_body,
@@ -381,7 +384,7 @@ with description('PikaClientWrapper contract tests') as self:
                                                body=self.a_body,
                                                **publish_other_parameters)
 
-                        expected_properties = pika_BasicProperties(expiration=ttl_milliseconds_string_value)
+                        expected_properties = pika_BasicProperties(expiration=ttl_milliseconds_string_value, headers=EMPTY_HEADERS)
                         expect(self.pika_blocking_channel_spy.basic_publish).to(have_been_called_with(exchange=self.an_exchange,
                                                                                                       routing_key=self.a_routing_key,
                                                                                                       body=self.a_body,
@@ -393,6 +396,23 @@ with description('PikaClientWrapper contract tests') as self:
                     with it('calls pika_library channel basic_publish with the correct properties (as header)'):
                         delayed_milliseconds_string_value = '4242'
                         publish_other_parameters = {'headers': {'x-delay': delayed_milliseconds_string_value}}
+
+                        self.sut.basic_publish(exchange=self.an_exchange,
+                                               routing_key=self.a_routing_key,
+                                               body=self.a_body,
+                                               **publish_other_parameters)
+
+                        expected_properties = pika_BasicProperties(headers=publish_other_parameters['headers'])
+                        expect(self.pika_blocking_channel_spy.basic_publish).to(have_been_called_with(exchange=self.an_exchange,
+                                                                                                      routing_key=self.a_routing_key,
+                                                                                                      body=self.a_body,
+                                                                                                      mandatory=False,
+                                                                                                      properties=expected_properties)
+                                                                                )
+
+                with context('when compress is present'):
+                    with it('calls pika_library channel basic_publish with the correct properties (as header)'):
+                        publish_other_parameters = {'headers': {'compress': True}}
 
                         self.sut.basic_publish(exchange=self.an_exchange,
                                                routing_key=self.a_routing_key,
@@ -454,11 +474,11 @@ with description('PikaClientWrapper contract tests') as self:
 
                     expect(self.pika_blocking_channel_spy.basic_ack).to(have_been_called_with(self.a_delivery_tag))
 
-                with it('returns a dict with key "body" and the message body as value'):
+                with it('returns a dict with key "body" and the message body as value and a key "properties" with the message properties'):
 
                     result = self.sut.consume_one_message(queue_name=self.a_queue_name, timeout_in_seconds=self.timeout_in_seconds)
 
-                    expected_result = {'body': self.a_message_body}
+                    expected_result = {'body': self.a_message_body, 'properties': pika_BasicProperties().__dict__}
                     expect(result).to(equal(expected_result))
 
             with context('when there is NOT a message'):

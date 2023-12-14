@@ -104,5 +104,5 @@ with description('RabbitMQMessage tests') as self:
 
             rabbimq_message = RabbitMQMessage(a_raw_message)
 
-            expected_string = '{}'.format(a_body)
-            expect('{}'.format(rabbimq_message)).to(contain_only(expected_string))
+            expected_string = f'{a_body}'
+            expect(f'{rabbimq_message}').to(contain_only(expected_string))

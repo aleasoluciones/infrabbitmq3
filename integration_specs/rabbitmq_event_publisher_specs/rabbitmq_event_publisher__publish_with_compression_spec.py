@@ -26,7 +26,7 @@ AN_EVENT_NAME = 'an_event_name'
 AN_EVENT_DATA = 'an_event_data'
 
 
-with description('RabbitMQEventPublisher integration test: Feature publish') as self:
+with description('RabbitMQEventPublisher integration test: Feature publish with compression') as self:
     with before.each:
         self.sut_event_publisher = factory.rabbitmq_event_publisher(exchange=A_TOPIC_EXCHANGE_NAME)
         self.rabbitmq_client = factory.no_singleton_rabbitmq_client()
@@ -54,8 +54,7 @@ with description('RabbitMQEventPublisher integration test: Feature publish') as 
 
     with context('publish and processing an event'):
         with it('calls the processor with event object data'):
-            self.sut_event_publisher.publish(AN_EVENT_NAME, A_NETWORK, data=AN_EVENT_DATA)
-            self.sut_event_publisher.publish(AN_EVENT_NAME, A_NETWORK, data=AN_EVENT_DATA)
+            self.sut_event_publisher.publish(AN_EVENT_NAME, A_NETWORK, data=AN_EVENT_DATA, compress=True)
             self.sut_event_processor.process_body(max_iterations=1)
 
             expect(self.event_processor.process).to(have_been_called_with(have_keys(name=AN_EVENT_NAME,

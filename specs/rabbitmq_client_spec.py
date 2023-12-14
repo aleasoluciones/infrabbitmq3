@@ -14,6 +14,7 @@ from infrabbitmq.exceptions import (
     ClientWrapperError,
     RabbitMQError,
 )
+from infrabbitmq.compressor import Compressor
 
 
 with description('RabbitMQClient Collaboration tests') as self:
@@ -22,7 +23,8 @@ with description('RabbitMQClient Collaboration tests') as self:
         self.serializer = Spy(JsonSerializer)
         self.pika_wrapper_client = Spy(PikaClientWrapper)
         self.logger = Spy(Logger)
-        self.sut = RabbitMQClient(self.broker_uri, self.serializer, self.pika_wrapper_client, self.logger)
+        self.compressor = Spy(Compressor)
+        self.sut = RabbitMQClient(self.broker_uri, self.serializer, self.pika_wrapper_client, self.logger, self.compressor)
 
     with context('Connecting'):
         with context('when there is NOT a connected client'):
@@ -159,12 +161,26 @@ with description('RabbitMQClient Collaboration tests') as self:
         with it('serializes the message to publish'):
             a_serialized_message = 'a_serialized_message'
             when(self.serializer).dumps(self.a_message).returns(a_serialized_message)
+            when(self.compressor).compress(a_serialized_message, False).returns(a_serialized_message)
 
             self.sut.publish(self.an_exchange_name, self.a_routing_key, self.a_message)
 
             expect(self.pika_wrapper_client.basic_publish).to(have_been_called_with(exchange=self.an_exchange_name,
                                                                                     routing_key=self.a_routing_key,
                                                                                     body=a_serialized_message)
+                                                              )
+
+        with it('calls compressor)'):
+            a_serialized_message = 'a_serialized_message'
+            a_compressed_message = 'a_compressed_message'
+            when(self.serializer).dumps(self.a_message).returns(a_serialized_message)
+            when(self.compressor).compress(a_serialized_message, False).returns(a_compressed_message)
+
+            self.sut.publish(self.an_exchange_name, self.a_routing_key, self.a_message)
+
+            expect(self.pika_wrapper_client.basic_publish).to(have_been_called_with(exchange=self.an_exchange_name,
+                                                                                    routing_key=self.a_routing_key,
+                                                                                    body=a_compressed_message)
                                                               )
 
         with it('calls pika_client_wrapper basic_publish'):
@@ -187,8 +203,8 @@ with description('RabbitMQClient Collaboration tests') as self:
                                                                                           timeout_in_seconds=self.a_timeout_in_seconds))
 
         with context('when there is a message from rabbitmq'):
-            with it('deserialize the message'):
-                a_serialized_message = {'body': 'a_serialized_message'}
+            with it('deserializes the message'):
+                a_serialized_message = {'body': 'a_serialized_message', 'properties': {}}
                 when(self.pika_wrapper_client).consume_one_message(queue_name=self.a_queue_name,
                                                                    timeout_in_seconds=self.a_timeout_in_seconds).returns(a_serialized_message)
 
@@ -199,16 +215,17 @@ with description('RabbitMQClient Collaboration tests') as self:
             with it('returns a RabbitMQMessage with the message body'):
                 a_real_body = 'a_real_body'
                 a_serialized_body = 'a_serialized_body'
-                a_serialized_message = {'body': a_serialized_body}
+                a_serialized_message = {'body': a_serialized_body, 'properties': {}}
                 a_deserialized_message = {'body': a_real_body}
                 when(self.pika_wrapper_client).consume_one_message(queue_name=self.a_queue_name,
                                                                    timeout_in_seconds=self.a_timeout_in_seconds).returns(a_serialized_message)
+                when(self.compressor).decompress(a_serialized_body, False).returns(a_serialized_body)
                 when(self.serializer).loads(a_serialized_body).returns(a_real_body)
 
                 result = self.sut.consume(self.a_queue_name, self.a_timeout_in_seconds)
 
                 expected_rabbitmq_message = RabbitMQMessage(a_deserialized_message)
-                expect('{}'.format(result)).to(equal('{}'.format(expected_rabbitmq_message)))
+                expect(f'{result}').to(equal(f'{expected_rabbitmq_message}'))
 
         with context('when there is NOT a message from rabbitmq'):
             with it('returns None'):
@@ -263,7 +280,7 @@ with description('RabbitMQClient Collaboration tests') as self:
             with before.each:
                 self.a_real_body_1 = 'a_real_body_1'
                 self.a_serialized_body_1 = 'a_serialized_body_1'
-                self.a_serialized_message_1 = {'body': self.a_serialized_body_1}
+                self.a_serialized_message_1 = {'body': self.a_serialized_body_1, 'properties': {}}
                 self.a_deserialized_message_1 = {'body': self.a_real_body_1}
                 when(self.pika_wrapper_client).consume_one_message(queue_name=self.a_queue_name,
                                                                    timeout_in_seconds=self.a_timeout_in_seconds).returns(self.a_serialized_message_1)
@@ -279,6 +296,7 @@ with description('RabbitMQClient Collaboration tests') as self:
                 expect(self.serializer.loads).to(have_been_called.once)
 
             with it('returns a RabbitMQMessage with the message body'):
+                when(self.compressor).decompress(self.a_serialized_body_1, False).returns(self.a_serialized_body_1)
                 when(self.serializer).loads(self.a_serialized_body_1).returns(self.a_real_body_1)
 
                 iterator_with_results = self.sut.consume_next(self.a_queue_name, self.a_timeout_in_seconds)
@@ -286,7 +304,7 @@ with description('RabbitMQClient Collaboration tests') as self:
                 total_message_to_check = 1
                 for counter, message in enumerate(iterator_with_results, start=1):
                     expected_rabbitmq_message = RabbitMQMessage(self.a_deserialized_message_1)
-                    expect('{}'.format(message)).to(equal('{}'.format(expected_rabbitmq_message)))
+                    expect(f'{message}').to(equal(f'{expected_rabbitmq_message}'))
                     if counter == total_message_to_check:
                         break
 
@@ -309,7 +327,7 @@ with description('RabbitMQClient Collaboration tests') as self:
             with it('logs the error'):
                 expect(self._when_client_wrapper_error_arise).to(raise_error(RabbitMQError))
 
-                expected_info_message = 'Reconnecting, Error ClientWrapper {}'.format(self.a_client_wrapper_error)
+                expected_info_message = f'Reconnecting, Error ClientWrapper {self.a_client_wrapper_error}'
                 expect(self.logger.info).to(have_been_called_with(expected_info_message,
                                                                   exc_info=True))
 
@@ -327,7 +345,7 @@ with description('RabbitMQClient Collaboration tests') as self:
 
                         expect(_raise_an_error).to(raise_error(RabbitMQError))
                         expect(self.pika_wrapper_client.disconnect).to(have_been_called)
-                        expected_info_message = 'Reconnecting, Error ClientWrapper {}'.format(self.a_client_wrapper_error)
+                        expected_info_message = f'Reconnecting, Error ClientWrapper {self.a_client_wrapper_error}'
                         expect(self.logger.info).to(have_been_called_with(expected_info_message, exc_info=True))
 
                 with context('with exchange_delete'):
@@ -338,7 +356,7 @@ with description('RabbitMQClient Collaboration tests') as self:
 
                         expect(_raise_an_error).to(raise_error(RabbitMQError))
                         expect(self.pika_wrapper_client.disconnect).to(have_been_called)
-                        expected_info_message = 'Reconnecting, Error ClientWrapper {}'.format(self.a_client_wrapper_error)
+                        expected_info_message = f'Reconnecting, Error ClientWrapper {self.a_client_wrapper_error}'
                         expect(self.logger.info).to(have_been_called_with(expected_info_message, exc_info=True))
 
             with context('Queues functionalities'):
@@ -350,7 +368,7 @@ with description('RabbitMQClient Collaboration tests') as self:
 
                         expect(_raise_an_error).to(raise_error(RabbitMQError))
                         expect(self.pika_wrapper_client.disconnect).to(have_been_called)
-                        expected_info_message = 'Reconnecting, Error ClientWrapper {}'.format(self.a_client_wrapper_error)
+                        expected_info_message = f'Reconnecting, Error ClientWrapper {self.a_client_wrapper_error}'
                         expect(self.logger.info).to(have_been_called_with(expected_info_message, exc_info=True))
 
                 with context('with queue_delete'):
@@ -361,7 +379,7 @@ with description('RabbitMQClient Collaboration tests') as self:
 
                         expect(_raise_an_error).to(raise_error(RabbitMQError))
                         expect(self.pika_wrapper_client.disconnect).to(have_been_called)
-                        expected_info_message = 'Reconnecting, Error ClientWrapper {}'.format(self.a_client_wrapper_error)
+                        expected_info_message = f'Reconnecting, Error ClientWrapper {self.a_client_wrapper_error}'
                         expect(self.logger.info).to(have_been_called_with(expected_info_message, exc_info=True))
 
                 with context('with queue_bind'):
@@ -372,7 +390,7 @@ with description('RabbitMQClient Collaboration tests') as self:
 
                         expect(_raise_an_error).to(raise_error(RabbitMQError))
                         expect(self.pika_wrapper_client.disconnect).to(have_been_called)
-                        expected_info_message = 'Reconnecting, Error ClientWrapper {}'.format(self.a_client_wrapper_error)
+                        expected_info_message = f'Reconnecting, Error ClientWrapper {self.a_client_wrapper_error}'
                         expect(self.logger.info).to(have_been_called_with(expected_info_message, exc_info=True))
 
                 with context('with queue_unbind'):
@@ -383,7 +401,7 @@ with description('RabbitMQClient Collaboration tests') as self:
 
                         expect(_raise_an_error).to(raise_error(RabbitMQError))
                         expect(self.pika_wrapper_client.disconnect).to(have_been_called)
-                        expected_info_message = 'Reconnecting, Error ClientWrapper {}'.format(self.a_client_wrapper_error)
+                        expected_info_message = f'Reconnecting, Error ClientWrapper {self.a_client_wrapper_error}'
                         expect(self.logger.info).to(have_been_called_with(expected_info_message, exc_info=True))
 
                 with context('with queue_purge'):
@@ -394,7 +412,7 @@ with description('RabbitMQClient Collaboration tests') as self:
 
                         expect(_raise_an_error).to(raise_error(RabbitMQError))
                         expect(self.pika_wrapper_client.disconnect).to(have_been_called)
-                        expected_info_message = 'Reconnecting, Error ClientWrapper {}'.format(self.a_client_wrapper_error)
+                        expected_info_message = f'Reconnecting, Error ClientWrapper {self.a_client_wrapper_error}'
                         expect(self.logger.info).to(have_been_called_with(expected_info_message, exc_info=True))
 
         with context('Disconnecting functionalities'):
@@ -415,7 +433,7 @@ with description('RabbitMQClient Collaboration tests') as self:
 
                     expect(self.logger.info).to(have_been_called_with(contain('disconnect fails:',
                                                                               str(self.a_client_wrapper_error),
-                                                                              '{}'.format(type(self.a_client_wrapper_error))
+                                                                              f'{type(self.a_client_wrapper_error)}'
                                                                               ),
                                                                       exc_info=True)
                                                 )
@@ -462,7 +480,7 @@ with description('RabbitMQClient Collaboration tests') as self:
 
                     expect(_raise_a_client_wrapper_error).to(raise_error(RabbitMQError))
                     expect(self.pika_wrapper_client.disconnect).to(have_been_called)
-                    expected_info_message = 'Reconnecting, Error ClientWrapper {}'.format(self.a_client_wrapper_error)
+                    expected_info_message = f'Reconnecting, Error ClientWrapper {self.a_client_wrapper_error}'
                     expect(self.logger.info).to(have_been_called_with(expected_info_message, exc_info=True))
 
         with context('Consuming one message functionalities'):
@@ -476,7 +494,7 @@ with description('RabbitMQClient Collaboration tests') as self:
 
                     expect(_raise_a_client_wrapper_error).to(raise_error(RabbitMQError))
                     expect(self.pika_wrapper_client.disconnect).to(have_been_called)
-                    expected_info_message = 'Reconnecting, Error ClientWrapper {}'.format(self.a_client_wrapper_error)
+                    expected_info_message = f'Reconnecting, Error ClientWrapper {self.a_client_wrapper_error}'
                     expect(self.logger.info).to(have_been_called_with(expected_info_message, exc_info=True))
 
         with context('Consuming messages (consume_next)'):
@@ -495,7 +513,7 @@ with description('RabbitMQClient Collaboration tests') as self:
 
                     expect(_raise_a_client_wrapper_error).to(raise_error(RabbitMQError))
                     expect(self.pika_wrapper_client.disconnect).to(have_been_called)
-                    expected_info_message = 'Reconnecting, Error ClientWrapper {}'.format(self.a_client_wrapper_error)
+                    expected_info_message = f'Reconnecting, Error ClientWrapper {self.a_client_wrapper_error}'
                     expect(self.logger.info).to(have_been_called_with(expected_info_message, exc_info=True))
 
         with context('Consuming messages (consume_pending)'):
@@ -510,5 +528,5 @@ with description('RabbitMQClient Collaboration tests') as self:
 
                     expect(_raise_a_client_wrapper_error).to(raise_error(RabbitMQError))
                     expect(self.pika_wrapper_client.disconnect).to(have_been_called)
-                    expected_info_message = 'Reconnecting, Error ClientWrapper {}'.format(self.a_client_wrapper_error)
+                    expected_info_message = f'Reconnecting, Error ClientWrapper {self.a_client_wrapper_error}'
                     expect(self.logger.info).to(have_been_called_with(expected_info_message, exc_info=True))

@@ -17,7 +17,7 @@ class Event(infcommon.AttributesComparison):
                         filter(None, (self.network, self.topic_prefix, self.name))))
 
 
-class ConsoleLogEventsProcessor(object):
+class ConsoleLogEventsProcessor:
     def process(self, event):
         format_str = '{event.timestamp} {event.network} {event.name} {event.id} {data}'
         print(format_str.format(event=event, data=event.data))

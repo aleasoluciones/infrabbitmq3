@@ -11,6 +11,7 @@ from infrabbitmq.events import Event
 DIRECT_EXCHANGE_TYPE = 'direct'
 TOPIC_EXCHANGE_TYPE = 'topic'
 X_DELAYED = 'x-delayed-message'
+COMPRESS_KEY = 'compress'
 
 # AMQP list_of_topics
 # * (star) can substitute for exactly one word.
@@ -20,12 +21,13 @@ X_DELAYED = 'x-delayed-message'
 # pylint: disable=E0213
 # pylint: disable=E1102
 class RabbitMQClient:
-    def __init__(self, broker_uri, serializer, pika_client_wrapper, logger):
+    def __init__(self, broker_uri, serializer, pika_client_wrapper, logger, compressor):
         self._broker_uri = broker_uri.replace('rabbitmq', 'amqp')
         self._connected_client = None
         self._serializer = serializer
         self._pika_client_wrapper = pika_client_wrapper
         self._logger = logger
+        self._compressor = compressor
 
     @property
     def connected_client(self):
@@ -39,7 +41,7 @@ class RabbitMQClient:
             try:
                 return func(self, *args, **kwargs)
             except ClientWrapperError as exc:
-                self._logger.info('Reconnecting, Error ClientWrapper {}'.format(exc),
+                self._logger.info(f'Reconnecting, Error ClientWrapper {exc}',
                                   exc_info=True)
                 self.disconnect()
                 raise RabbitMQError(exc)
@@ -105,16 +107,17 @@ class RabbitMQClient:
 
     @raise_rabbitmq_error
     def publish(self, exchange, routing_key, message, **kwargs):
+        compression = self._is_compression_enable(kwargs)
         self.connected_client.basic_publish(exchange=exchange,
                                             routing_key=routing_key,
-                                            body=self._serialize(message),
+                                            body=self._compressor.compress(self._serialize(message), compression),
                                             **kwargs)
 
     @raise_rabbitmq_error
     def consume(self, queue_name, timeout=1):
         message = self.connected_client.consume_one_message(queue_name=queue_name, timeout_in_seconds=timeout)
         if message:
-            message['body'] = self._deserialize(message['body'])
+            message['body'] = self._deserialize(self._compressor.decompress(message['body'], self._is_decompression_enable(message['properties'])))
             message = RabbitMQMessage(message)
         else:
             message = None
@@ -125,10 +128,9 @@ class RabbitMQClient:
     def consume_next(self, queue_name, timeout=1):
         try:
             while True:
-                if next_message := self.connected_client.consume_one_message(
-                    queue_name=queue_name, timeout_in_seconds=timeout
-                ):
-                    next_message['body'] = self._deserialize(next_message['body'])
+                next_message = self.connected_client.consume_one_message(queue_name=queue_name, timeout_in_seconds=timeout)
+                if next_message:
+                    next_message['body'] = self._deserialize(self._compressor.decompress(next_message['body'], self._is_decompression_enable(next_message['properties'])))
                     yield RabbitMQMessage(next_message)
                 else:
                     yield None
@@ -143,13 +145,22 @@ class RabbitMQClient:
                                      pika_client_wrapper=self._pika_client_wrapper,
                                      timeout_in_seconds=timeout,
                                      serializer=self._serializer,
-                                     logger=self._logger)
+                                     logger=self._logger,
+                                     compressor=self._compressor)
 
     def _serialize(self, value):
         return self._serializer.dumps(value)
 
     def _deserialize(self, value):
         return self._serializer.loads(value)
+
+    def _is_compression_enable(self, kwargs):
+        if kwargs is None:
+            return False
+        return bool(kwargs.get('headers', {}).get(COMPRESS_KEY, False))
+
+    def _is_decompression_enable(self, properties):
+        return bool(properties.get('headers', {}).get(COMPRESS_KEY, False))
 
 
 class RabbitMQMessage:
@@ -183,12 +194,13 @@ class RabbitMQMessage:
 # pylint: disable=E0213
 # pylint: disable=E1102
 class RabbitMQQueueIterator:
-    def __init__(self, queue_name, pika_client_wrapper, timeout_in_seconds, serializer, logger):
+    def __init__(self, queue_name, pika_client_wrapper, timeout_in_seconds, serializer, logger, compressor):
         self._queue_name = queue_name
         self._pika_wrapper_client = pika_client_wrapper
         self._timeout_in_seconds = timeout_in_seconds
         self._serializer = serializer
         self._logger = logger
+        self._compressor = compressor
 
     def iterator_raise_rabbitmq_error(func):
         @wraps(func)
@@ -196,7 +208,7 @@ class RabbitMQQueueIterator:
             try:
                 return func(self, *args, **kwargs)
             except ClientWrapperError as exc:
-                self._logger.info('Reconnecting, Error ClientWrapper {}'.format(exc),
+                self._logger.info(f'Reconnecting, Error ClientWrapper {exc}',
                                   exc_info=True)
                 self._pika_wrapper_client.disconnect()
                 raise RabbitMQError(exc)
@@ -219,8 +231,11 @@ class RabbitMQQueueIterator:
         if not message:
             raise StopIteration
 
-        message['body'] = self._serializer.loads(message['body'])
+        message['body'] = self._serializer.loads(self._compressor.decompress(message['body'], self._is_decompression_enable(message['properties'])))
         return RabbitMQMessage(message)
+
+    def _is_decompression_enable(self, properties):
+        return bool(properties.get('headers', {}).get(COMPRESS_KEY, False))
 
 
 class RabbitMQEventPublisher:
@@ -232,35 +247,36 @@ class RabbitMQEventPublisher:
         self._clock_service = clock_service
         self._exchange = exchange
 
-    def publish(self, event_name, network, data=None, id=None, topic_prefix=None, persistent=False):
+    def publish(self, event_name, network, data=None, id=None, topic_prefix=None, persistent=False, compress=False):
         event = self._build_an_event_with_timestamp(event_name, network=network, data=data, id=id, topic_prefix=topic_prefix)
-        self.publish_event_object(event=event, persistent=persistent)
+        self.publish_event_object(event=event, persistent=persistent, compress=compress)
 
-    def publish_event_object(self, event, persistent=False):
+    def publish_event_object(self, event, persistent=False, compress=False):
         if not event.timestamp or not event.timestamp_str:
             now = self._clock_service.now()
             event.timestamp = self._clock_service.timestamp(now)
             event.timestamp_str = str(now)
-        message_header = {'persistent': persistent}
+        message_header = {'persistent': persistent, COMPRESS_KEY: compress}
         self._exchange_declare(exchange_type=TOPIC_EXCHANGE_TYPE, durable=True)
         self._publish_an_event(event=event, message_header=message_header)
 
-    def publish_with_ttl(self, event_name, network, ttl_milliseconds, data=None, id=None, topic_prefix=None, persistent=False):
+    def publish_with_ttl(self, event_name, network, ttl_milliseconds, data=None, id=None, topic_prefix=None, persistent=False, compress=False):
         self._exchange_declare(exchange_type=TOPIC_EXCHANGE_TYPE, durable=True)
 
         event = self._build_an_event_with_timestamp(event_name, network=network, data=data, id=id, topic_prefix=topic_prefix)
         message_header = {
             'expiration': str(ttl_milliseconds),
             'persistent': persistent,
+            COMPRESS_KEY: compress,
         }
         self._publish_an_event(event=event, message_header=message_header)
 
-    def publish_with_delay(self, event_name, network, delay_milliseconds=0, data=None, id=None, topic_prefix=None, persistent=False):
+    def publish_with_delay(self, event_name, network, delay_milliseconds=0, data=None, id=None, topic_prefix=None, persistent=False, compress=False):
         exchange_arguments = {'x-delayed-type': 'topic'}
         self._exchange_declare(exchange_type=X_DELAYED, durable=True, arguments=exchange_arguments)
 
         event = self._build_an_event_with_timestamp(event_name, network=network, data=data, id=id, topic_prefix=topic_prefix)
-        message_header = {'x-delay': str(delay_milliseconds), 'persistent': persistent}
+        message_header = {'x-delay': str(delay_milliseconds), 'persistent': persistent, COMPRESS_KEY: compress}
         self._publish_an_event(event=event, message_header=message_header)
 
     def _build_an_event_with_timestamp(self, event_name, network, data, id, topic_prefix):

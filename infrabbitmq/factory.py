@@ -23,6 +23,7 @@ from infrabbitmq.events_processors import (
     NoopProcessor,
     ConsoleLogEventsProcessor,
 )
+from infrabbitmq.compressor import Compressor
 
 
 def configure_pika_logger_to_error():
@@ -37,15 +38,20 @@ def no_singleton_rabbitmq_client(broker_uri=None, serializer=None):
     return RabbitMQClient(broker_uri,
                           serializer,
                           _no_singleton_pika_client_wrapper(),
-                          logger)
+                          logger,
+                          _compressor())
 
+def _compressor():
+    return Singleton.instance('_compressor',
+                              lambda: Compressor()
+                              )
 
 def _no_singleton_pika_client_wrapper(pika_library=pika):
     return PikaClientWrapper(pika_library=pika_library)
 
 
 def rabbitmq_event_publisher(exchange='events', broker_uri=None):
-    return Singleton.instance('event_publisher_{}_{}'.format(exchange, broker_uri),
+    return Singleton.instance(f'event_publisher_{exchange}_{broker_uri}',
                               lambda: RabbitMQEventPublisher(rabbitmq_client=no_singleton_rabbitmq_client(broker_uri=broker_uri),
                                                              clock_service=_clock_service(),
                                                              exchange=exchange)
@@ -53,7 +59,7 @@ def rabbitmq_event_publisher(exchange='events', broker_uri=None):
 
 
 def rabbitmq_event_publisher_pickle_serializer(exchange='events', broker_uri=None):
-    return Singleton.instance('event_publisher_pickle_serializer_{}_{}'.format(exchange, broker_uri),
+    return Singleton.instance(f'event_publisher_pickle_serializer_{exchange}_{broker_uri}',
                               lambda: RabbitMQEventPublisher(rabbitmq_client=no_singleton_rabbitmq_client(broker_uri=broker_uri,
                                                                                                           serializer=serializer_factory.pickle_serializer()),
                                                              clock_service=_clock_service(),
@@ -62,7 +68,7 @@ def rabbitmq_event_publisher_pickle_serializer(exchange='events', broker_uri=Non
 
 
 def rabbitmq_event_publisher_json_serializer(exchange='events', broker_uri=None):
-    return Singleton.instance('event_publisher_json_serializer_{}_{}'.format(exchange, broker_uri),
+    return Singleton.instance(f'event_publisher_json_serializer_{exchange}_{broker_uri}',
                               lambda: RabbitMQEventPublisher(rabbitmq_client=no_singleton_rabbitmq_client(broker_uri=broker_uri,
                                                                                                           serializer=serializer_factory.json_serializer()),
                                                              clock_service=_clock_service(),

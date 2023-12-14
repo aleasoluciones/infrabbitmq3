@@ -1,6 +1,6 @@
 from mamba import description, before, context, it
 from doublex import Spy, when, ANY_ARG
-from expects import expect, have_properties, have_len, be_above_or_equal, be_a, have_key, raise_error
+from expects import expect, have_properties, have_len, be_above_or_equal, be_a, have_key, have_keys, raise_error
 from doublex_expects import have_been_called_with, have_been_called
 
 from infcommon.clock import Clock
@@ -67,7 +67,7 @@ with description('RabbitMQEventPublisher tests') as self:
                                                                                                   timestamp=be_a(float),
                                                                                                   timestamp_str=have_len(be_above_or_equal(1))
                                                                                                   ),
-                                                                          headers=have_key('persistent', False)
+                                                                          headers=have_keys(persistent=False, compress=False)
                                                                           )
                                                     )
 
@@ -98,10 +98,21 @@ with description('RabbitMQEventPublisher tests') as self:
                                                                               )
                                                         )
 
-            with it('calls rabbitmq_client publish with no headers'):
+            with it('calls rabbitmq_client publish with persistent header as False by default'):
                 self.sut.publish_event_object(self.an_event_without_timestamp)
 
                 expect(self.rabbitmq_client.publish).to(have_been_called_with(headers=have_key('persistent', False)))
+
+            with context('compression'):
+                with it('calls rabbitmq_client publish with compress header as False by default'):
+                    self.sut.publish_event_object(self.an_event_without_timestamp)
+
+                    expect(self.rabbitmq_client.publish).to(have_been_called_with(headers=have_key('compress', False)))
+
+                with it('calls rabbitmq_client publish with compress header as True if compression is select'):
+                    self.sut.publish_event_object(self.an_event_without_timestamp, compress=True)
+
+                    expect(self.rabbitmq_client.publish).to(have_been_called_with(headers=have_key('compress', True)))
 
         with context('when the event has timestamp and/or timestamp_str'):
             with it('publishes the event with the received timestamp and timestamp_str'):
@@ -156,6 +167,17 @@ with description('RabbitMQEventPublisher tests') as self:
 
             expect(self.rabbitmq_client.publish).to(have_been_called_with(headers=have_key('persistent', False)))
 
+        with context('compression'):
+            with it('calls rabbitmq_client publish with compress header as False by default'):
+                self.sut.publish_with_ttl(AN_EVENT_NAME, A_NETWORK, A_TTL_MILLISECONDS_IN_NUMBER)
+
+                expect(self.rabbitmq_client.publish).to(have_been_called_with(headers=have_key('compress', False)))
+
+            with it('calls rabbitmq_client publish with compress header as True if compression is select'):
+                self.sut.publish_with_ttl(AN_EVENT_NAME, A_NETWORK, A_TTL_MILLISECONDS_IN_NUMBER, compress=True)
+
+                expect(self.rabbitmq_client.publish).to(have_been_called_with(headers=have_key('compress', True)))
+
     with context('Feature: publish_with_delay'):
         with context('Declaring exchange'):
             with it('calls rabbitmq_client exchange_declare with exchange name and durable attributes'):
@@ -195,11 +217,23 @@ with description('RabbitMQEventPublisher tests') as self:
                 self.sut.publish_with_delay(AN_EVENT_NAME, A_NETWORK, delay_milliseconds=A_DELAY_MILLISECONDS_IN_NUMBER)
 
                 expect(self.rabbitmq_client.publish).to(have_been_called_with(headers=have_key('x-delay', str(A_DELAY_MILLISECONDS_IN_NUMBER))))
+                expect(self.rabbitmq_client.publish).to(have_been_called_with(headers=have_key('compress', False)))
 
             with it('calls rabbitmq_client publish with persistent header as False by default'):
                 self.sut.publish_with_delay(AN_EVENT_NAME, A_NETWORK, delay_milliseconds=A_DELAY_MILLISECONDS_IN_NUMBER)
 
                 expect(self.rabbitmq_client.publish).to(have_been_called_with(headers=have_key('persistent', False)))
+
+            with context('compression'):
+                with it('calls rabbitmq_client publish with compress header as False by default'):
+                    self.sut.publish_with_delay(AN_EVENT_NAME, A_NETWORK, delay_milliseconds=A_DELAY_MILLISECONDS_IN_NUMBER)
+
+                    expect(self.rabbitmq_client.publish).to(have_been_called_with(headers=have_key('compress', False)))
+
+                with it('calls rabbitmq_client publish with compress header as True if compression is select'):
+                    self.sut.publish_with_delay(AN_EVENT_NAME, A_NETWORK, delay_milliseconds=A_DELAY_MILLISECONDS_IN_NUMBER, compress=True)
+
+                    expect(self.rabbitmq_client.publish).to(have_been_called_with(headers=have_key('compress', True)))
 
     with context('When any calls to rabbitmq_client fails (UNHAPPY PATH)'):
         with context('exchange declare fails (used by publish, publish_event_object, publish_with_delay or publish_with_ttl)'):

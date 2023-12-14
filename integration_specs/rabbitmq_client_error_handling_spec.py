@@ -13,6 +13,7 @@ from infrabbitmq.rabbitmq import (
     TOPIC_EXCHANGE_TYPE,
 )
 from infrabbitmq.pika_client_wrapper import PikaClientWrapper
+from infrabbitmq import factory
 
 MY_DIRECT_EXCHANGE_NAME = 'my_direct_exchange_name'
 A_MESSAGE = 'a_message'
@@ -24,10 +25,12 @@ with description('RabbitMQClient Integration tests - Handling errors') as self:
         self.serializer = serializer_factory.json_serializer()
         self.pika_wrapper_client = PikaClientWrapper(pika_library=pika)
         self.logger = logger
+        self.compressor = factory._compressor()
         self.sut = RabbitMQClient(self.broker_uri,
                                   self.serializer,
                                   self.pika_wrapper_client,
-                                  self.logger)
+                                  self.logger,
+                                  self.compressor)
 
     with context('when the exchange is not declared'):
         with it('raises RabbitMQError'):
@@ -48,9 +51,10 @@ with description('RabbitMQClient Integration tests - Handling errors') as self:
             def _callback():
                 broker_uri = 'rabbitmq://WRONGUSER:WRONGPASSWD@localhost:5672/'
                 sut = RabbitMQClient(broker_uri,
-                                              self.serializer,
-                                              self.pika_wrapper_client,
-                                              self.logger)
+                                     self.serializer,
+                                     self.pika_wrapper_client,
+                                     self.logger,
+                                     self.compressor)
                 sut.exchange_declare(exchange=MY_DIRECT_EXCHANGE_NAME, exchange_type=TOPIC_EXCHANGE_TYPE)
 
             expect(_callback).to(raise_error(RabbitMQError))

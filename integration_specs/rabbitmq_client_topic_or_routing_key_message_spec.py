@@ -15,9 +15,10 @@ from infrabbitmq.rabbitmq import (
     TOPIC_EXCHANGE_TYPE,
 )
 from infrabbitmq.pika_client_wrapper import PikaClientWrapper
+from infrabbitmq import factory
 
 MY_TOPIC_EXCHANGE_NAME = 'my_topic_exchange_name'
-MY_QUEUE_NAME = 'my_queue_name_{}'.format(getpid())
+MY_QUEUE_NAME = f'my_queue_name_{getpid()}'
 
 A_MESSAGE = 'a_message'
 ANOTHER_MESSAGE = 'another_message'
@@ -29,10 +30,12 @@ with description('RabbitMQClient Integration tests - Consuming and publishing To
         self.serializer = serializer_factory.json_serializer()
         self.pika_wrapper_client = PikaClientWrapper(pika_library=pika)
         self.logger = logger
+        self.compressor = factory._compressor()
         self.sut = RabbitMQClient(self.broker_uri,
                                   self.serializer,
                                   self.pika_wrapper_client,
-                                  self.logger)
+                                  self.logger,
+                                  self.compressor)
 
         self.sut.exchange_declare(exchange=MY_TOPIC_EXCHANGE_NAME, exchange_type=TOPIC_EXCHANGE_TYPE)
         self.sut.queue_declare(queue_name=MY_QUEUE_NAME, auto_delete=False)

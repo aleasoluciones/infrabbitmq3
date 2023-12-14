@@ -16,7 +16,7 @@ from infrabbitmq.rabbitmq import TOPIC_EXCHANGE_TYPE
 from infrabbitmq.exceptions import RabbitMQError
 
 
-class Importer(object):
+class Importer:
 
     @classmethod
     def import_module(cls, module_name):
@@ -111,9 +111,9 @@ def main(factory, network,
     # EventBuilder instance
     event_builder_instance = Importer.get_symbol(event_builder)()
 
-    logger.info('PID ({}) Starting event_processor {}'.format(getpid(), processor_name))
-    logger.info('{} queue {} list_of_topics {}'.format(processor_name, queue_name, list_of_topics))
-    logger.info('{} deserializer {}'.format(processor_name, serializer))
+    logger.info(f'PID ({getpid()}) Starting event_processor {processor_name}')
+    logger.info(f'{processor_name} queue {queue_name} list_of_topics {list_of_topics}')
+    logger.info(f'{processor_name} deserializer {serializer}')
 
     # Execute
     utils.do_stuff_with_exponential_backoff((RabbitMQError,),

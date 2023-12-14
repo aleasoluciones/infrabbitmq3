@@ -20,7 +20,7 @@ factory.configure_pika_logger_to_error()
 
 
 A_TOPIC_EXCHANGE_NAME = 'a_topic_exchange_name'
-A_QUEUE_NAME = 'my_queue_name_{}'.format(getpid())
+A_QUEUE_NAME = f'my_queue_name_{getpid()}'
 A_LIST_OF_TOPICS = ['#']
 A_NETWORK = 'a_network'
 A_TOPIC = 'a_topic'

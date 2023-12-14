@@ -12,6 +12,7 @@ from infrabbitmq.rabbitmq import (
 )
 from infrabbitmq.pika_client_wrapper import PikaClientWrapper
 from infrabbitmq.exceptions import ClientWrapperError, RabbitMQError
+from infrabbitmq.compressor import Compressor
 
 A_QUEUE_NAME = 'a_queue_name'
 TIMEOUT_IN_SECONDS = 42
@@ -22,11 +23,13 @@ with description('RabbitMQQueueIterator tests') as self:
         self.pika_wrapper_client = Spy(PikaClientWrapper)
         self.serializer = Spy(JsonSerializer)
         self.logger = Spy(Logger)
+        self.compressor = Spy(Compressor)
         self.sut = RabbitMQQueueIterator(A_QUEUE_NAME,
                                          self.pika_wrapper_client,
                                          TIMEOUT_IN_SECONDS,
                                          self.serializer,
-                                         self.logger)
+                                         self.logger,
+                                         self.compressor)
 
     with context('getting next item'):
         # No useful test
@@ -39,9 +42,12 @@ with description('RabbitMQQueueIterator tests') as self:
         with context('when there is a message'):
             with before.each:
                 self.a_serialized_body = 'a_serialized_body'
-                self.serialized_message = {'body': self.a_serialized_body}
+                self.compression = False
+                properties = {'headers': {'compression': self.compression}}
+                self.serialized_message = {'body': self.a_serialized_body, 'properties': properties}
                 when(self.pika_wrapper_client).consume_one_message(queue_name=A_QUEUE_NAME,
                                                                    timeout_in_seconds=TIMEOUT_IN_SECONDS).returns(self.serialized_message)
+                when(self.compressor).decompress(self.a_serialized_body, self.compression).returns(self.a_serialized_body)
 
             with it('deserialize the message'):
                 iterator = iter(self.sut)
@@ -49,9 +55,16 @@ with description('RabbitMQQueueIterator tests') as self:
 
                 expect(self.serializer.loads).to(have_been_called_with(self.a_serialized_body))
 
+            with it('call compressor to decompress if needed'):
+                iterator = iter(self.sut)
+                message = next(iterator)
+
+                expect(self.compressor.decompress).to(have_been_called_with(self.a_serialized_body, self.compression))
+
             with it('returns a RabbitMQMessage with the deserialized message body'):
                 a_deserialized_body = 'a_deserialized_body'
                 a_deserialized_message = {'body': a_deserialized_body}
+                self.serialized_message = {'body': self.a_serialized_body, 'properties': {}}
                 when(self.serializer).loads(self.a_serialized_body).returns(a_deserialized_body)
 
                 iterator = iter(self.sut)
@@ -89,7 +102,7 @@ with description('RabbitMQQueueIterator tests') as self:
                 with it('logs the error'):
                     expect(self._when_pika_wrapper_client_error_arise).to(raise_error(RabbitMQError))
 
-                    expected_info_message = 'Reconnecting, Error ClientWrapper {}'.format(self.a_pika_wrapper_client_error)
+                    expected_info_message = f'Reconnecting, Error ClientWrapper {self.a_pika_wrapper_client_error}'
                     expect(self.logger.info).to(have_been_called_with(expected_info_message,
                                                                       exc_info=True))
 
@@ -100,7 +113,7 @@ with description('RabbitMQQueueIterator tests') as self:
 
             with context('when any other error arise'):
                 with before.each:
-                    a_serialized_message = {'body': 'a_serialized_body'}
+                    a_serialized_message = {'body': 'a_serialized_body', 'properties': {}}
                     when(self.pika_wrapper_client).consume_one_message(queue_name=A_QUEUE_NAME,
                                                                        timeout_in_seconds=TIMEOUT_IN_SECONDS).returns(a_serialized_message)
                     self.any_other_error = RuntimeError()

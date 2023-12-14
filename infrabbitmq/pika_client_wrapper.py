@@ -107,19 +107,20 @@ class PikaClientWrapper:
     def _build_properties_for_basic_publish(self, headers):
         delivery_mode = self.PERSISTENT_DELIVERY_MODE if headers.get('persistent') == True else self.DEFAULT_DELIVERY_MODE
         if 'expiration' in headers.keys():
-            return BasicProperties(expiration=headers['expiration'], delivery_mode=delivery_mode)
+            expiration = headers.pop('expiration')
+            return BasicProperties(headers=headers, delivery_mode=delivery_mode, expiration=expiration)
         elif 'x-delay' in headers.keys():
             return BasicProperties(headers=headers, delivery_mode=delivery_mode)
-
-        return BasicProperties(delivery_mode=delivery_mode)
+        return BasicProperties(headers=headers, delivery_mode=delivery_mode)
 
     @raise_client_wrapper_error
     def consume_one_message(self, queue_name, timeout_in_seconds=1):
-        message_body = {}
+        message = {}
         for method_frame, properties, body in self._channel.consume(queue_name, inactivity_timeout=timeout_in_seconds):
             if body and method_frame:
                 self._channel.basic_ack(method_frame.delivery_tag)
-                message_body['body'] = body
+                message['body'] = body
+                message['properties'] = properties.__dict__ if properties else {}
             break
 
-        return message_body
+        return message
