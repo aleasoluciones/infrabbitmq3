@@ -1,3 +1,5 @@
+#!/usr/bin/env python3
+
 import argparse
 from infcommon import logger
 from infrabbitmq import factory as infrabbitmq_factory
