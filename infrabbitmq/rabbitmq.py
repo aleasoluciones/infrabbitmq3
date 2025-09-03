@@ -6,6 +6,7 @@ from infrabbitmq.exceptions import (
     RabbitMQError,
 )
 from infrabbitmq.events import Event
+from infcommon.logging_utils import trace_id_var
 
 
 DIRECT_EXCHANGE_TYPE = 'direct'
@@ -261,7 +262,7 @@ class RabbitMQEventPublisher:
             now = self._clock_service.now()
             event.timestamp = self._clock_service.timestamp(now)
             event.timestamp_str = str(now)
-        message_header = {'persistent': persistent, COMPRESS_KEY: compress}
+        message_header = {'persistent': persistent, COMPRESS_KEY: compress, "X-Trace-Id": trace_id_var.get()}
         self._exchange_declare(exchange_type=TOPIC_EXCHANGE_TYPE, durable=True)
         self._publish_an_event(event=event, message_header=message_header)
 
@@ -273,6 +274,7 @@ class RabbitMQEventPublisher:
             'expiration': str(ttl_milliseconds),
             'persistent': persistent,
             COMPRESS_KEY: compress,
+            "X-Trace-Id": trace_id_var.get(),
         }
         self._publish_an_event(event=event, message_header=message_header)
 
@@ -281,7 +283,7 @@ class RabbitMQEventPublisher:
         self._exchange_declare(exchange_type=X_DELAYED, durable=True, arguments=exchange_arguments)
 
         event = self._build_an_event_with_timestamp(event_name, network=network, data=data, id=id, topic_prefix=topic_prefix)
-        message_header = {'x-delay': str(delay_milliseconds), 'persistent': persistent, COMPRESS_KEY: compress}
+        message_header = {'x-delay': str(delay_milliseconds), 'persistent': persistent, COMPRESS_KEY: compress, "X-Trace-Id": trace_id_var.get()}
         self._publish_an_event(event=event, message_header=message_header)
 
     def _build_an_event_with_timestamp(self, event_name, network, data, id, topic_prefix):

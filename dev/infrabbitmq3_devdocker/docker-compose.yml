@@ -1,11 +1,13 @@
-rabbitmq:
-  image: aleasoluciones/rabbitmq-delayed-message:0.3
-  hostname: infrabbit3-dev
-  environment:
-    - RABBITMQ_DEFAULT_USER=${BROKER_USER}
-    - RABBITMQ_DEFAULT_PASS=${BROKER_PASS}
-  ports:
-    - "${BROKER_MANAGEMENT_PORT}:15672"
-    - "${BROKER_PORT}:5672"
-  volumes:
-    - /etc/localtime:/etc/localtime:ro
+version: "2.1"
+services:
+  rabbitmq:
+    image: aleasoluciones/rabbitmq-delayed-message:0.3
+    hostname: infrabbit3-dev
+    environment:
+      - RABBITMQ_DEFAULT_USER=${BROKER_USER}
+      - RABBITMQ_DEFAULT_PASS=${BROKER_PASS}
+    ports:
+      - "${BROKER_MANAGEMENT_PORT}:15672"
+      - "${BROKER_PORT}:5672"
+    volumes:
+      - /etc/localtime:/etc/localtime:ro

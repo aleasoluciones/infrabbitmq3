@@ -10,6 +10,7 @@ from pika.spec import (
 from pika import exceptions as pika_exceptions
 
 from infrabbitmq.exceptions import ClientWrapperError
+from infcommon.logging_utils import trace_id_var
 
 
 # pylint: disable=E0213
@@ -121,6 +122,10 @@ class PikaClientWrapper:
                 self._channel.basic_ack(method_frame.delivery_tag)
                 message['body'] = body
                 message['properties'] = properties.__dict__ if properties else {}
+                trace_id = None
+                if properties and properties.headers:
+                    trace_id = properties.headers.get("X-Trace-Id")
+                trace_id_var.set(trace_id)
             break
 
         return message
