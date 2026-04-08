@@ -57,8 +57,8 @@ def _event_processor_name(factory_func_name):
     return factory_func_name.split('.')[-1:]
 
 
-def _queue_event_processor(queue_name, exchange, list_of_topics, event_processor, message_ttl_milliseconds, serializer, event_builder, exchange_type, logger):
-    queue_options = {'message_ttl': message_ttl_milliseconds}
+def _queue_event_processor(queue_name, exchange, list_of_topics, event_processor, message_ttl_milliseconds, max_length, serializer, event_builder, exchange_type, logger):
+    queue_options = {'message_ttl': message_ttl_milliseconds, 'max_length': max_length}
     return infrabbitmq_factory.no_singleton_rabbitmq_queue_event_processor(queue_name=queue_name,
                                                                            exchange=exchange,
                                                                            list_of_topics=list_of_topics,
@@ -72,13 +72,14 @@ def _queue_event_processor(queue_name, exchange, list_of_topics, event_processor
                                                                            )
 
 
-def _process_body_events(queue_name, exchange, list_of_topics, event_processor, message_ttl_milliseconds, serializer, event_builder, exchange_type, logger):
+def _process_body_events(queue_name, exchange, list_of_topics, event_processor, message_ttl_milliseconds, max_length, serializer, event_builder, exchange_type, logger):
     logger.info("Connecting")
     # Be aware. Each time this function is called, we are creating a new no_singleton_rabbitmq_queue_event_processor
     queue_event_processor = _queue_event_processor(queue_name, exchange,
                                                    list_of_topics,
                                                    event_processor,
                                                    message_ttl_milliseconds,
+                                                   max_length,
                                                    serializer,
                                                    event_builder,
                                                    exchange_type,
@@ -90,7 +91,7 @@ def main(factory, network,
          exchange, exchange_type,
          queue_name, list_of_topics,
          serialization, event_builder,
-         message_ttl_milliseconds):
+         message_ttl_milliseconds, max_length):
 
     infrabbitmq_factory.configure_pika_logger_to_error()
 
@@ -125,6 +126,7 @@ def main(factory, network,
                                             list_of_topics,
                                             LogProcessor(event_processor),
                                             message_ttl_milliseconds,
+                                            max_length,
                                             serializer,
                                             event_builder_instance,
                                             exchange_type,
@@ -143,6 +145,7 @@ if __name__ == '__main__':
         parser.add_argument('-n', '--network', action='store', required=False, help='')
         parser.add_argument('-s', '--serialization', action="store", required=False, help="Select serialization Json, Pickle")
         parser.add_argument('-ttl', '--message-ttl-milliseconds', action='store', type=int, default=None, help='In milliseconds!')
+        parser.add_argument('-ml', '--max-length', action='store', type=int, default=None, help='Maximum number of messages in the queue')
         args = parser.parse_args()
 
         main(factory=args.factory, network=args.network,
@@ -150,7 +153,8 @@ if __name__ == '__main__':
              queue_name=args.queue_name, list_of_topics=args.list_of_topics,
              serialization=args.serialization,
              event_builder=args.event_builder,
-             message_ttl_milliseconds=args.message_ttl_milliseconds)
+             message_ttl_milliseconds=args.message_ttl_milliseconds,
+             max_length=args.max_length)
     except Exception as exc:
         logger.critical(f'EventProcessor Fails. exc_type: {type(exc)} exc: {exc}',
                         exc_info=True)
