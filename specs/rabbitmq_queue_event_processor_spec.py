@@ -40,7 +40,8 @@ with description('RabbitMQQueueEventProcessor specs') as self:
                 rabbitmq_client_mock.queue_declare(queue_name=A_QUEUE_NAME,
                                                    durable=True,
                                                    auto_delete=False,
-                                                   message_ttl=None)
+                                                   message_ttl=None,
+                                                   max_length=None)
                 rabbitmq_client_mock.queue_bind(queue_name=A_QUEUE_NAME,
                                                 exchange=AN_EXCHANGE,
                                                 routing_key=A_SINGLE_TOPIC)
@@ -109,7 +110,31 @@ with description('RabbitMQQueueEventProcessor specs') as self:
                 expect(rabbitmq_client_spy.queue_declare).to(have_been_called_with(queue_name=A_QUEUE_NAME,
                                                                                    durable=set_durable_false,
                                                                                    auto_delete=set_auto_delete_true,
-                                                                                   message_ttl=set_ttl_milliseconds_message)
+                                                                                   message_ttl=set_ttl_milliseconds_message,
+                                                                                   max_length=None)
+                                                             )
+
+            with it('uses max_length option received'):
+                set_max_length = 100000
+                queue_options = {'max_length': set_max_length}
+                rabbitmq_client_spy = Spy(RabbitMQClient)
+                sut = RabbitMQQueueEventProcessor(queue_name=A_QUEUE_NAME,
+                                                  event_processor=self.event_processor,
+                                                  rabbitmq_client=rabbitmq_client_spy,
+                                                  exchange=AN_EXCHANGE,
+                                                  list_of_topics=A_TOPIC_LIST_WITH_A_SINGLE_TOPIC,
+                                                  exchange_options=AN_EXCHANGE_OPTIONS,
+                                                  queue_options=queue_options,
+                                                  event_builder=self.event_builder,
+                                                  logger=self.logger,
+                                                  exchange_type=TOPIC_EXCHANGE_TYPE)
+
+
+                expect(rabbitmq_client_spy.queue_declare).to(have_been_called_with(queue_name=A_QUEUE_NAME,
+                                                                                   durable=True,
+                                                                                   auto_delete=False,
+                                                                                   message_ttl=None,
+                                                                                   max_length=set_max_length)
                                                              )
 
         with context('when there are several topics'):

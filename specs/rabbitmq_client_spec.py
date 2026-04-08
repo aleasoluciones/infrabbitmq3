@@ -110,6 +110,18 @@ with description('RabbitMQClient Collaboration tests') as self:
                                                                                             arguments=expected_arguments)
                                                                       )
 
+            with context('Declaring a queue with max_length option'):
+                with it('calls pika_client_wrapper queue_declare with x-max-length option'):
+                    a_queue_name = 'a_queue_name'
+                    a_max_length = 100000
+
+                    self.sut.queue_declare(a_queue_name, max_length=a_max_length)
+
+                    expected_arguments = {'x-max-length': a_max_length}
+                    expect(self.pika_wrapper_client.queue_declare).to(have_been_called_with(queue_name=a_queue_name,
+                                                                                            arguments=expected_arguments)
+                                                                      )
+
         with context('Binding a queue'):
             with it('calls pika_client_wrapper queue_bind'):
                 an_exchange_name = 'an_exchange_name'

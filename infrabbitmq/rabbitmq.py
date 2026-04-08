@@ -80,10 +80,12 @@ class RabbitMQClient:
         self.connected_client.exchange_delete(exchange=exchange)
 
     @raise_rabbitmq_error
-    def queue_declare(self, queue_name, auto_delete=True, exclusive=False, durable=False, message_ttl=None):
+    def queue_declare(self, queue_name, auto_delete=True, exclusive=False, durable=False, message_ttl=None, max_length=None):
         arguments = {}
         if message_ttl is not None:
             arguments['x-message-ttl'] = message_ttl
+        if max_length is not None:
+            arguments['x-max-length'] = max_length
         self.connected_client.queue_declare(queue_name=queue_name,
                                             auto_delete=auto_delete,
                                             exclusive=exclusive,
@@ -369,7 +371,8 @@ class RabbitMQQueueEventProcessor:
         self._rabbitmq_client.queue_declare(queue_name=self._queue_name,
                                             durable=self._queue_options.get('durable', True),
                                             auto_delete=self._queue_options.get('auto_delete', False),
-                                            message_ttl=self._queue_options.get('message_ttl')
+                                            message_ttl=self._queue_options.get('message_ttl'),
+                                            max_length=self._queue_options.get('max_length')
                                             )
 
     def _bind_queue_to_topics(self):
