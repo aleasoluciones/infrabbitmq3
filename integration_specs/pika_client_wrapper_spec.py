@@ -15,7 +15,7 @@ from pika.spec import (
 )
 from pika import exceptions as pika_exceptions
 
-from infrabbitmq.pika_client_wrapper import PikaClientWrapper
+from infrabbitmq.pika_client_wrapper import PikaClientWrapper, PRECONDITION_FAILED
 from infrabbitmq.exceptions import ClientWrapperError
 
 IRRELEVANT_EXCEPTION_REPLY_CODE = 42
@@ -218,6 +218,56 @@ with description('PikaClientWrapper contract tests') as self:
                                                                                               exclusive=a_queue_exclusive_param,
                                                                                               auto_delete=a_queue_auto_delete_param,
                                                                                               arguments=a_queue_arguments_param))
+            with context('when queue already exists with different arguments (PRECONDITION_FAILED)'):
+                with before.each:
+                    self.a_new_channel_spy = Spy(pika_BlockingChannel)
+                    self.a_queue_name = 'a_queue_name'
+                    self.a_queue_arguments = {'x-max-length': 100}
+                    a_precondition_failed_error = pika_exceptions.ChannelClosedByBroker(reply_code=PRECONDITION_FAILED,
+                                                                                        reply_text='PRECONDITION_FAILED')
+                    when(self.pika_blocking_channel_spy).queue_declare(ANY_ARG).raises(a_precondition_failed_error)
+                    when(self.pika_blocking_connection_spy).channel().returns(self.a_new_channel_spy)
+
+                with it('reopens the channel'):
+                    self.sut.queue_declare(queue_name=self.a_queue_name, arguments=self.a_queue_arguments)
+
+                    expect(self.pika_blocking_connection_spy.channel).to(have_been_called)
+
+                with it('configures basic_qos on the new channel'):
+                    self.sut.queue_declare(queue_name=self.a_queue_name, arguments=self.a_queue_arguments)
+
+                    expect(self.a_new_channel_spy.basic_qos).to(have_been_called_with(prefetch_size=0, prefetch_count=1, global_qos=True))
+
+                with it('configures confirm_delivery on the new channel'):
+                    self.sut.queue_declare(queue_name=self.a_queue_name, arguments=self.a_queue_arguments)
+
+                    expect(self.a_new_channel_spy.confirm_delivery).to(have_been_called)
+
+                with it('deletes the existing queue'):
+                    self.sut.queue_declare(queue_name=self.a_queue_name, arguments=self.a_queue_arguments)
+
+                    expect(self.a_new_channel_spy.queue_delete).to(have_been_called_with(queue=self.a_queue_name))
+
+                with it('declares the queue with the new arguments'):
+                    self.sut.queue_declare(queue_name=self.a_queue_name, arguments=self.a_queue_arguments)
+
+                    expect(self.a_new_channel_spy.queue_declare).to(have_been_called_with(self.a_queue_name,
+                                                                                          durable=False,
+                                                                                          exclusive=False,
+                                                                                          auto_delete=True,
+                                                                                          arguments=self.a_queue_arguments))
+
+            with context('when an error arise that is NOT PRECONDITION_FAILED (unhappy path)'):
+                with it('raises a ClientWrapperError'):
+                    def _when_queue_declare_raises_a_non_precondition_error():
+                        a_channel_closed_error = pika_exceptions.ChannelClosedByBroker(reply_code=IRRELEVANT_EXCEPTION_REPLY_CODE,
+                                                                                       reply_text=IRRELEVANT_EXCEPTION_REPLY_TEXT)
+                        when(self.pika_blocking_channel_spy).queue_declare(ANY_ARG).raises(a_channel_closed_error)
+
+                        self.sut.queue_declare(queue_name='irrelevant_queue_name')
+
+                    expect(_when_queue_declare_raises_a_non_precondition_error).to(raise_error(ClientWrapperError))
+
             with context('when an error arise (unhappy path)'):
                 with it('raises a ClientWrapperError'):
                     def _when_queue_declare_raises_an_error():

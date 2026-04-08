@@ -15,6 +15,9 @@ from infcommon.logging_utils import trace_id_var
 
 # pylint: disable=E0213
 # pylint: disable=E1102
+PRECONDITION_FAILED = 406
+
+
 class PikaClientWrapper:
     DEFAULT_HEARTBEAT = 0
     DEFAULT_DELIVERY_MODE = None
@@ -76,11 +79,24 @@ class PikaClientWrapper:
 
     @raise_client_wrapper_error
     def queue_declare(self, queue_name, auto_delete=True, exclusive=False, durable=False, arguments=None):
-        self._channel.queue_declare(queue_name,
-                                    durable=durable,
-                                    exclusive=exclusive,
-                                    auto_delete=auto_delete,
-                                    arguments=arguments)
+        try:
+            self._channel.queue_declare(queue_name,
+                                        durable=durable,
+                                        exclusive=exclusive,
+                                        auto_delete=auto_delete,
+                                        arguments=arguments)
+        except pika_exceptions.ChannelClosedByBroker as exc:
+            if exc.reply_code != PRECONDITION_FAILED:
+                raise
+            self._channel = self._connection.channel()
+            self._channel.basic_qos(prefetch_size=0, prefetch_count=1, global_qos=True)
+            self._channel.confirm_delivery()
+            self._channel.queue_delete(queue=queue_name)
+            self._channel.queue_declare(queue_name,
+                                        durable=durable,
+                                        exclusive=exclusive,
+                                        auto_delete=auto_delete,
+                                        arguments=arguments)
 
     @raise_client_wrapper_error
     def queue_bind(self, queue_name, exchange, routing_key=''):
