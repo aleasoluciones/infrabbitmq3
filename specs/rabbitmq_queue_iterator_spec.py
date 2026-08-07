@@ -1,6 +1,6 @@
 from mamba import description, before, context, it
 from doublex import Spy, when, ANY_ARG
-from expects import expect, equal, raise_error
+from expects import expect, equal, raise_error, contain
 from doublex_expects import have_been_called_with, have_been_called
 
 from infcommon.serializer.serializers import JsonSerializer
@@ -99,12 +99,15 @@ with description('RabbitMQQueueIterator tests') as self:
                 with it('raises a RabbitMQError'):
                     expect(self._when_pika_wrapper_client_error_arise).to(raise_error(RabbitMQError))
 
+                with it('raises a RabbitMQError keeping the original error description'):
+                    expect(self._when_pika_wrapper_client_error_arise).to(raise_error(RabbitMQError, contain('a_pika_wrapper_client_error_description')))
+
                 with it('logs the error'):
                     expect(self._when_pika_wrapper_client_error_arise).to(raise_error(RabbitMQError))
 
-                    expected_info_message = f'Reconnecting, Error ClientWrapper {self.a_pika_wrapper_client_error}'
-                    expect(self.logger.info).to(have_been_called_with(expected_info_message,
-                                                                      exc_info=True))
+                    expected_warning_message = f'Reconnecting, Error ClientWrapper {self.a_pika_wrapper_client_error}'
+                    expect(self.logger.warning).to(have_been_called_with(expected_warning_message,
+                                                                         exc_info=True))
 
                 with it('disconnect'):
                     expect(self._when_pika_wrapper_client_error_arise).to(raise_error(RabbitMQError))

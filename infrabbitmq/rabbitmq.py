@@ -42,10 +42,10 @@ class RabbitMQClient:
             try:
                 return func(self, *args, **kwargs)
             except ClientWrapperError as exc:
-                self._logger.info(f'Reconnecting, Error ClientWrapper {exc}',
-                                  exc_info=True)
+                self._logger.warning(f'Reconnecting, Error ClientWrapper {exc}',
+                                     exc_info=True)
                 self.disconnect()
-                raise RabbitMQError(exc)
+                raise RabbitMQError(f'{func.__name__}: {exc}') from exc
         return wrapper
 
     def _connect(self):
@@ -139,9 +139,9 @@ class RabbitMQClient:
                 else:
                     yield None
         except ClientWrapperError as exc:
-            self._logger.info(f'Reconnecting, Error ClientWrapper {exc}', exc_info=True)
+            self._logger.warning(f'Reconnecting, Error ClientWrapper {exc}', exc_info=True)
             self.disconnect()
-            raise RabbitMQError(exc) from exc
+            raise RabbitMQError(f'consume_next: {exc}') from exc
 
     @raise_rabbitmq_error
     def consume_pending(self, queue_name, timeout=1):
@@ -214,10 +214,10 @@ class RabbitMQQueueIterator:
             try:
                 return func(self, *args, **kwargs)
             except ClientWrapperError as exc:
-                self._logger.info(f'Reconnecting, Error ClientWrapper {exc}',
-                                  exc_info=True)
+                self._logger.warning(f'Reconnecting, Error ClientWrapper {exc}',
+                                     exc_info=True)
                 self._pika_wrapper_client.disconnect()
-                raise RabbitMQError(exc)
+                raise RabbitMQError(f'{func.__name__}: {exc}') from exc
             except Exception as exc:
                 self._logger.critical('Error consuming from queue {} exc_type {} exc {}'.format(self._queue_name,
                                                                                                 type(exc),

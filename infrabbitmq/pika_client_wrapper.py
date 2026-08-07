@@ -34,10 +34,10 @@ class PikaClientWrapper:
             try:
                 return func(self, *args, **kwargs)
             except (pika_exceptions.AMQPError, pika_exceptions.ChannelError, pika_exceptions.ReentrancyError) as exc:
-                raise ClientWrapperError(exc)
+                raise ClientWrapperError(f'{func.__name__}: {type(exc).__name__}: {exc}') from exc
             except ValueError as exc:
                 # if consumer-creation parameters don’t match those of the existing queue consumer generator, if any. NEW in pika 0.10.0
-                raise ClientWrapperError(exc)
+                raise ClientWrapperError(f'{func.__name__}: {type(exc).__name__}: {exc}') from exc
         return wrapper
 
     @raise_client_wrapper_error

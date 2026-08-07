@@ -1,7 +1,7 @@
 from mamba import description, before, context, it
 from doublex import Spy, when, ANY_ARG
 from doublex_expects import have_been_called, have_been_called_with
-from expects import expect, equal, raise_error, be_empty, be
+from expects import expect, equal, raise_error, be_empty, be, contain
 
 from os import environ
 from pika.adapters.blocking_connection import (
@@ -100,12 +100,19 @@ with description('PikaClientWrapper contract tests') as self:
                     expect(self.pika_library_spy.BlockingConnection).to(have_been_called_with(pika_url_parameters_with_no_query_parameters))
 
         with context('when an error arise (unhappy path)'):
-            with it('raises a ClientWrapperError'):
-                def _when_blocking_connection_raises_an_error():
-                    when(self.pika_library_spy).BlockingConnection(pika_URLParameters(self.broker_uri)).raises(pika_exceptions.ConnectionWrongStateError)
+            def _when_blocking_connection_raises_an_error(self):
+                when(self.pika_library_spy).BlockingConnection(pika_URLParameters(self.broker_uri)).raises(pika_exceptions.ConnectionWrongStateError)
 
-                    self.sut.connect(self.broker_uri)
-                expect(_when_blocking_connection_raises_an_error).to(raise_error(ClientWrapperError))
+                self.sut.connect(self.broker_uri)
+
+            with it('raises a ClientWrapperError'):
+                expect(self._when_blocking_connection_raises_an_error).to(raise_error(ClientWrapperError))
+
+            with it('keeps the pika exception type in the error description'):
+                expect(self._when_blocking_connection_raises_an_error).to(raise_error(ClientWrapperError, contain('ConnectionWrongStateError')))
+
+            with it('names the failed operation in the error description'):
+                expect(self._when_blocking_connection_raises_an_error).to(raise_error(ClientWrapperError, contain('connect')))
 
     with context('Disconnect'):
         with before.each:

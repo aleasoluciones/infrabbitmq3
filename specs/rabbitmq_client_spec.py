@@ -336,12 +336,25 @@ with description('RabbitMQClient Collaboration tests') as self:
             with it('raises a RabbitMQError'):
                 expect(self._when_client_wrapper_error_arise).to(raise_error(RabbitMQError))
 
+            with it('raises a RabbitMQError naming the failed operation'):
+                expect(self._when_client_wrapper_error_arise).to(raise_error(RabbitMQError, contain('queue_purge')))
+
+            with it('raises a RabbitMQError keeping the original error description'):
+                expect(self._when_client_wrapper_error_arise).to(raise_error(RabbitMQError, contain('blabla')))
+
+            with it('raises a RabbitMQError with a non empty description when the original error has no message'):
+                def _when_client_wrapper_error_without_message_arise():
+                    when(self.pika_wrapper_client).queue_purge(ANY_ARG).raises(ClientWrapperError())
+                    self.sut.queue_purge(queue_name='irrelevant_queue_name')
+
+                expect(_when_client_wrapper_error_without_message_arise).to(raise_error(RabbitMQError, contain('queue_purge')))
+
             with it('logs the error'):
                 expect(self._when_client_wrapper_error_arise).to(raise_error(RabbitMQError))
 
-                expected_info_message = f'Reconnecting, Error ClientWrapper {self.a_client_wrapper_error}'
-                expect(self.logger.info).to(have_been_called_with(expected_info_message,
-                                                                  exc_info=True))
+                expected_warning_message = f'Reconnecting, Error ClientWrapper {self.a_client_wrapper_error}'
+                expect(self.logger.warning).to(have_been_called_with(expected_warning_message,
+                                                                     exc_info=True))
 
             with it('disconnect'):
                 expect(self._when_client_wrapper_error_arise).to(raise_error(RabbitMQError))
@@ -357,8 +370,8 @@ with description('RabbitMQClient Collaboration tests') as self:
 
                         expect(_raise_an_error).to(raise_error(RabbitMQError))
                         expect(self.pika_wrapper_client.disconnect).to(have_been_called)
-                        expected_info_message = f'Reconnecting, Error ClientWrapper {self.a_client_wrapper_error}'
-                        expect(self.logger.info).to(have_been_called_with(expected_info_message, exc_info=True))
+                        expected_warning_message = f'Reconnecting, Error ClientWrapper {self.a_client_wrapper_error}'
+                        expect(self.logger.warning).to(have_been_called_with(expected_warning_message, exc_info=True))
 
                 with context('with exchange_delete'):
                     with it('does the same (raises a RabbitMQError, logs the error, disconnect)'):
@@ -368,8 +381,8 @@ with description('RabbitMQClient Collaboration tests') as self:
 
                         expect(_raise_an_error).to(raise_error(RabbitMQError))
                         expect(self.pika_wrapper_client.disconnect).to(have_been_called)
-                        expected_info_message = f'Reconnecting, Error ClientWrapper {self.a_client_wrapper_error}'
-                        expect(self.logger.info).to(have_been_called_with(expected_info_message, exc_info=True))
+                        expected_warning_message = f'Reconnecting, Error ClientWrapper {self.a_client_wrapper_error}'
+                        expect(self.logger.warning).to(have_been_called_with(expected_warning_message, exc_info=True))
 
             with context('Queues functionalities'):
                 with context('with queue_declare'):
@@ -380,8 +393,8 @@ with description('RabbitMQClient Collaboration tests') as self:
 
                         expect(_raise_an_error).to(raise_error(RabbitMQError))
                         expect(self.pika_wrapper_client.disconnect).to(have_been_called)
-                        expected_info_message = f'Reconnecting, Error ClientWrapper {self.a_client_wrapper_error}'
-                        expect(self.logger.info).to(have_been_called_with(expected_info_message, exc_info=True))
+                        expected_warning_message = f'Reconnecting, Error ClientWrapper {self.a_client_wrapper_error}'
+                        expect(self.logger.warning).to(have_been_called_with(expected_warning_message, exc_info=True))
 
                 with context('with queue_delete'):
                     with it('does the same (raises a RabbitMQError, logs the error, disconnect)'):
@@ -391,8 +404,8 @@ with description('RabbitMQClient Collaboration tests') as self:
 
                         expect(_raise_an_error).to(raise_error(RabbitMQError))
                         expect(self.pika_wrapper_client.disconnect).to(have_been_called)
-                        expected_info_message = f'Reconnecting, Error ClientWrapper {self.a_client_wrapper_error}'
-                        expect(self.logger.info).to(have_been_called_with(expected_info_message, exc_info=True))
+                        expected_warning_message = f'Reconnecting, Error ClientWrapper {self.a_client_wrapper_error}'
+                        expect(self.logger.warning).to(have_been_called_with(expected_warning_message, exc_info=True))
 
                 with context('with queue_bind'):
                     with it('does the same (raises a RabbitMQError, logs the error, disconnect)'):
@@ -402,8 +415,8 @@ with description('RabbitMQClient Collaboration tests') as self:
 
                         expect(_raise_an_error).to(raise_error(RabbitMQError))
                         expect(self.pika_wrapper_client.disconnect).to(have_been_called)
-                        expected_info_message = f'Reconnecting, Error ClientWrapper {self.a_client_wrapper_error}'
-                        expect(self.logger.info).to(have_been_called_with(expected_info_message, exc_info=True))
+                        expected_warning_message = f'Reconnecting, Error ClientWrapper {self.a_client_wrapper_error}'
+                        expect(self.logger.warning).to(have_been_called_with(expected_warning_message, exc_info=True))
 
                 with context('with queue_unbind'):
                     with it('does the same (raises a RabbitMQError, logs the error, disconnect)'):
@@ -413,8 +426,8 @@ with description('RabbitMQClient Collaboration tests') as self:
 
                         expect(_raise_an_error).to(raise_error(RabbitMQError))
                         expect(self.pika_wrapper_client.disconnect).to(have_been_called)
-                        expected_info_message = f'Reconnecting, Error ClientWrapper {self.a_client_wrapper_error}'
-                        expect(self.logger.info).to(have_been_called_with(expected_info_message, exc_info=True))
+                        expected_warning_message = f'Reconnecting, Error ClientWrapper {self.a_client_wrapper_error}'
+                        expect(self.logger.warning).to(have_been_called_with(expected_warning_message, exc_info=True))
 
                 with context('with queue_purge'):
                     with it('does the same (raises a RabbitMQError, logs the error, disconnect)'):
@@ -424,8 +437,8 @@ with description('RabbitMQClient Collaboration tests') as self:
 
                         expect(_raise_an_error).to(raise_error(RabbitMQError))
                         expect(self.pika_wrapper_client.disconnect).to(have_been_called)
-                        expected_info_message = f'Reconnecting, Error ClientWrapper {self.a_client_wrapper_error}'
-                        expect(self.logger.info).to(have_been_called_with(expected_info_message, exc_info=True))
+                        expected_warning_message = f'Reconnecting, Error ClientWrapper {self.a_client_wrapper_error}'
+                        expect(self.logger.warning).to(have_been_called_with(expected_warning_message, exc_info=True))
 
         with context('Disconnecting functionalities'):
             with context('when ClientWrapperError arise'):
@@ -492,8 +505,8 @@ with description('RabbitMQClient Collaboration tests') as self:
 
                     expect(_raise_a_client_wrapper_error).to(raise_error(RabbitMQError))
                     expect(self.pika_wrapper_client.disconnect).to(have_been_called)
-                    expected_info_message = f'Reconnecting, Error ClientWrapper {self.a_client_wrapper_error}'
-                    expect(self.logger.info).to(have_been_called_with(expected_info_message, exc_info=True))
+                    expected_warning_message = f'Reconnecting, Error ClientWrapper {self.a_client_wrapper_error}'
+                    expect(self.logger.warning).to(have_been_called_with(expected_warning_message, exc_info=True))
 
         with context('Consuming one message functionalities'):
             with context('when ClientWrapperError arise'):
@@ -506,8 +519,8 @@ with description('RabbitMQClient Collaboration tests') as self:
 
                     expect(_raise_a_client_wrapper_error).to(raise_error(RabbitMQError))
                     expect(self.pika_wrapper_client.disconnect).to(have_been_called)
-                    expected_info_message = f'Reconnecting, Error ClientWrapper {self.a_client_wrapper_error}'
-                    expect(self.logger.info).to(have_been_called_with(expected_info_message, exc_info=True))
+                    expected_warning_message = f'Reconnecting, Error ClientWrapper {self.a_client_wrapper_error}'
+                    expect(self.logger.warning).to(have_been_called_with(expected_warning_message, exc_info=True))
 
         with context('Consuming messages (consume_next)'):
             with context('when ClientWrapperError arise'):
@@ -525,8 +538,8 @@ with description('RabbitMQClient Collaboration tests') as self:
 
                     expect(_raise_a_client_wrapper_error).to(raise_error(RabbitMQError))
                     expect(self.pika_wrapper_client.disconnect).to(have_been_called)
-                    expected_info_message = f'Reconnecting, Error ClientWrapper {self.a_client_wrapper_error}'
-                    expect(self.logger.info).to(have_been_called_with(expected_info_message, exc_info=True))
+                    expected_warning_message = f'Reconnecting, Error ClientWrapper {self.a_client_wrapper_error}'
+                    expect(self.logger.warning).to(have_been_called_with(expected_warning_message, exc_info=True))
 
         with context('Consuming messages (consume_pending)'):
             with context('when ClientWrapperError arise'):
@@ -540,5 +553,5 @@ with description('RabbitMQClient Collaboration tests') as self:
 
                     expect(_raise_a_client_wrapper_error).to(raise_error(RabbitMQError))
                     expect(self.pika_wrapper_client.disconnect).to(have_been_called)
-                    expected_info_message = f'Reconnecting, Error ClientWrapper {self.a_client_wrapper_error}'
-                    expect(self.logger.info).to(have_been_called_with(expected_info_message, exc_info=True))
+                    expected_warning_message = f'Reconnecting, Error ClientWrapper {self.a_client_wrapper_error}'
+                    expect(self.logger.warning).to(have_been_called_with(expected_warning_message, exc_info=True))
