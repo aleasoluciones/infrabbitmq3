@@ -1,2 +1,2 @@
-pika==1.4.0
+pika==1.4.4
 retrying==1.4.2
